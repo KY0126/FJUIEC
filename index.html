@@ -222,6 +222,8 @@ const GEO=[{"c":"VA","d":"M416.4,610.6L416.2,610.7L416.2,610.6L416.2,610.5L416.4
 </script>
 <script>
 /* ===== 設定：部署到 GitHub Pages 等公開網址時，填入 Google Apps Script 的網址即可匿名記錄 ===== */
+/* 數據收集總開關：false＝展示版，不記錄任何作答、不顯示回饋與訪談邀請；要收集時改成 true，並填入 ENDPOINT */
+const COLLECT = false;
 const ENDPOINT = '';
 
 /* ===== 資料 ===== */
@@ -387,6 +389,7 @@ const src = (()=>{let s='';try{s=new URLSearchParams(location.search).get('src')
 let dbRef=null;
 (async()=>{try{if(window.claude&&claude.use){const db=await claude.use('db');if(db)dbRef=db}}catch(e){} if(location.hash==='#stats')render()})();
 function log(ev,data={}){
+  if(!COLLECT)return;
   const rec={sid,ev,src,ts:new Date().toISOString(),data:JSON.stringify(data)};
   try{if(dbRef)dbRef.collection('events').add(rec).catch(()=>{})}catch(e){}
   if(ENDPOINT){try{fetch(ENDPOINT,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify(rec)}).catch(()=>{})}catch(e){}}
@@ -484,7 +487,7 @@ function cover(){const el=$(`<section class="screen cover">
   <div class="meta"><span>12 題</span><span>約 1 分鐘</span><span>匿名・不需登入</span></div>
   <button class="btn cta" id="start">開始 12 題測驗 →</button>
   <p class="help" style="margin-top:-8px">約 1 分鐘・做完會拿到你的旅人角色卡和推薦行程</p>
-  <p class="note">作答匿名，僅用於課程研究；按下開始即表示同意。這是輔大創新創業社的課程原型，推薦行程皆為示意。</p>
+  <p class="note">${COLLECT?'作答匿名，僅用於課程研究；按下開始即表示同意。':'目前為展示版，作答不會被記錄或傳送。'}這是輔大創新創業社的課程原型，推薦行程皆為示意。</p>
   <button class="replay" id="replay">重看開場動畫</button>
  </section>`);
   el.querySelector('#replay').onclick=()=>{state.screen='intro';render()};
@@ -549,7 +552,7 @@ function result(){const sh=scores();const p=state.view;const P=PACES[p];const re
    </div>
    <button class="btn ghost" id="pp">看看旅人護照長什麼樣 →</button>
    <p class="help" style="margin-top:-8px">出團後會看到的足跡地圖，這裡用範例資料示範</p>
-   <div class="dock"><p class="help">最後一步，只要 30 秒</p><button class="btn cta" id="next">告訴我們推薦準不準 →</button></div>
+   ${COLLECT?'<div class="dock"><p class="help">最後一步，只要 30 秒</p><button class="btn cta" id="next">告訴我們推薦準不準 →</button></div>':''}
   </section>`);
   mapUI(el,first);
   el.querySelectorAll('.chip').forEach(b=>b.onclick=()=>{const np=b.dataset.p;if(np===state.view)return;log('switch_pace',{from:state.view,to:np});state.view=np;state.mapSel=null;render()});
@@ -578,7 +581,7 @@ function result(){const sh=scores();const p=state.view;const P=PACES[p];const re
     try{await navigator.clipboard.writeText(text);toast('已複製分享文字，可以貼到 LINE 或 IG')}catch(e){toast('請截圖角色卡分享給朋友')}};
   el.querySelector('#avt').onclick=()=>{state.showAv=!state.showAv;try{localStorage.setItem('hideAvatar',state.showAv?'0':'1')}catch(e){};log('avatar_toggle',{show:state.showAv});render()};
   el.querySelector('#pp').onclick=()=>{log('passport_preview',{});state.screen='passport';render()};
-  el.querySelector('#next').onclick=()=>{state.screen='feedback';state.extraIdx=-1;render()};
+  const nx=el.querySelector('#next');if(nx)nx.onclick=()=>{state.screen='feedback';state.extraIdx=-1;render()};
   return el}
 
 
