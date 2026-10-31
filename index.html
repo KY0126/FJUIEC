@@ -225,6 +225,11 @@ const GEO=[{"c":"VA","d":"M416.4,610.6L416.2,610.7L416.2,610.6L416.2,610.5L416.4
 /* 數據收集總開關：false＝展示版，不記錄任何作答、不顯示回饋與訪談邀請；要收集時改成 true，並填入 ENDPOINT */
 const COLLECT = false;
 const ENDPOINT = '';
+/* LINE 官方帳號 ID（含 @）。改名或換帳號時只要改這裡 */
+const LINE_OA = '@556xjzjp';
+const LINE_ADD = 'https://line.me/R/ti/p/' + encodeURIComponent(LINE_OA);
+const lineMsg = t => 'https://line.me/R/oaMessage/' + encodeURIComponent(LINE_OA) + '/?' + encodeURIComponent(t);
+const openLine = u => { try { const w = window.open(u, '_blank'); if (!w) location.href = u; } catch (e) { location.href = u; } };
 
 /* ===== 資料 ===== */
 /* 五種旅人角色：tempo＝節奏（精準／均衡／留白），用來配對行程；角色由「節奏 × 取向」決定 */
@@ -539,7 +544,7 @@ function result(){const sh=scores();const p=state.view;const P=PACES[p];const re
      <div class="row" role="group" aria-label="換個角色">${ROLE_ORDER.map(k=>`<button class="chip" data-p="${k}" aria-pressed="${k===p}">${PACES[k].short}</button>`).join('')}<span class="note" style="align-self:center">換個角色看看</span></div>
      <div class="flt" id="flt"></div>
      <div class="cards" id="cards"></div>
-     <p class="help">按「我想了解這團」代表想請顧問介紹；課程原型只會記錄點擊，不會真的聯絡你</p>
+     <p class="help">按「我想了解這團」會開啟 LINE，把行程名稱帶給顧問；課程原型期間由團隊回覆</p>
      <p class="note">行程為課程示意，價格依永信官網同區域行程的標價區間設定（2026 年 10 月查詢）。</p>
    </div>
    <div class="page">
@@ -571,7 +576,7 @@ function result(){const sh=scores();const p=state.view;const P=PACES[p];const re
     const list=on.length?scoreAll(p).filter(r=>on.every(id=>defs.find(d=>d.id===id).test(r.t))).slice(0,5):recommend(p);
     if(on.length)flt.querySelector('.fcount:last-child').textContent=`符合 ${list.length} 團${list.length===5?'（顯示前 5 團）':''}`;
     cards.innerHTML=list.length?list.map(card).join(''):'<div class="empty">沒有同時符合這些條件的示意行程，試著取消一個條件。</div>';
-    cards.querySelectorAll('button').forEach(b=>b.onclick=()=>{const r=list[+b.dataset.k];log('rec_click',{trip:r.t.name,rank:+b.dataset.k,pace:state.view,filters:on});toast('謝謝！這是課程原型，實際服務上線後會由顧問與你聯繫。')});
+    cards.querySelectorAll('button').forEach(b=>b.onclick=()=>{const r=list[+b.dataset.k];log('rec_click',{trip:r.t.name,rank:+b.dataset.k,pace:state.view,filters:on});openLine(lineMsg(`我想了解「${r.t.name}」（${PACES[state.view].name}）`))});
     flt.querySelectorAll('.fchip').forEach(b=>b.onclick=()=>{const f=b.dataset.f;state.filters.has(f)?state.filters.delete(f):state.filters.add(f);log('filter',{id:f,on:state.filters.has(f)});draw()});
     const c=flt.querySelector('#fclear');if(c)c.onclick=()=>{state.filters.clear();log('filter',{id:'clear'});draw()};
   }
@@ -692,9 +697,11 @@ function thanks(){const P=PACES[state.view];const el=$(`<section class="screen c
    <div class="seal">完成<br>入境</div>
    <h1 style="font-size:26px;padding-right:84px">謝謝你，${P.name}</h1>
    <p>你的回答會幫助我們設計更好的旅程推薦。可以把角色卡分享給朋友，看看他們是哪一種旅人。</p>
-   <button class="btn cta" id="again">回到我的結果 →</button>
+   <button class="btn cta" id="line">加入 LINE，讓顧問接手 →</button>
+   <button class="btn ghost" id="again">回到我的結果</button>
    <p class="note">輔大創新創業社課程原型・作答匿名</p></section>`);
-  el.querySelector('#again').onclick=()=>{state.screen='result';render()};return el}
+  el.querySelector('#again').onclick=()=>{state.screen='result';render()};
+  el.querySelector('#line').onclick=()=>{log('line_add',{pace:state.view});openLine(LINE_ADD)};return el}
 
 /* ===== 統計頁（網址加上 #stats） ===== */
 function statsView(){const el=$(`<section class="screen" style="display:flex;flex-direction:column;gap:16px">
