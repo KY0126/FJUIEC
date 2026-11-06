@@ -1,0 +1,44 @@
+<!doctype html><html><head><meta charset=utf8><style>
+:root{--o:#F39500;--n:#00223D;--g:#D5D9DE;--m:#5F6B77}
+body{margin:0;font-family:"Noto Sans CJK TC",sans-serif;background:#fff;color:#1F2A35}
+.wrap{width:760px;box-sizing:border-box;background:#fff;padding:22px 22px 24px;display:flex;flex-direction:column;gap:22px}
+h1{margin:0;font-size:24px;line-height:1.35;color:var(--n)} .sub{font-size:15.5px;line-height:1.5;color:var(--m);margin-top:-12px}
+.row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px 18px}
+.col{display:flex;flex-direction:column;gap:10px}
+.name{font-weight:700;font-size:20px;color:var(--n)}
+.ph{border:2px solid #C9CED4;border-radius:14px;height:210px;padding:8px;display:grid;gap:4px;background:#FAFAFA}
+.ph div{background:var(--g);border-radius:4px;font-size:14px;display:grid;place-items:center;color:#46505B;text-align:center;line-height:1.2}
+.ph .tab{background:#BCC3CB;font-size:13px}
+.ph .big{background:#AEB6BF;color:#1F2A35}
+.ph.ys div{background:#fff;border:1.5px solid #E6DFD2;color:var(--n)}
+.ph.ys .tab{background:var(--n);color:#fff;border:0}
+.ph.ys .tab.on{background:#F9F6EF;color:var(--n);border-top:3px solid var(--o)}
+.ph.ys .big{background:#E8A54F;color:var(--n);font-weight:700;border:0}
+.ph.none{display:grid;place-items:center;color:var(--m);font-size:15px;background:#fff;border-style:dashed}
+.cnt{font-family:"Noto Sans Mono CJK TC",monospace;font-size:15px;color:var(--o);font-weight:700}
+.t{font-size:15.5px;line-height:1.5;color:#33404C}
+.col.rec .name{color:var(--o)}
+.col.rec .ph{box-shadow:0 0 0 4px #FDE3B5}
+</style></head><body><div class="wrap" id="fig">
+<h1>圖文選單版型對照：四家業者 vs. 永信建議</h1>
+<div class="sub">團隊實測截圖整理，2026 年 10 月 17 日；灰色為競品版型示意，橘框為本案建議</div>
+<div class="row">
+ <div class="col"><span class="name">雄獅</span>
+  <div class="ph" style="grid-template-columns:1fr 1fr;grid-template-rows:1fr .5fr 1fr"><div>團體行程</div><div>自由行</div><div class="big" style="grid-column:span 2">熱門優惠橫幅</div><div>機票</div><div>住宿</div></div>
+  <span class="cnt">4 格＋橫幅＋3 分頁</span><span class="t">以商品類別與促銷分流，品項多、適合大型綜合旅行社</span></div>
+ <div class="col"><span class="name">山富</span>
+  <div class="ph" style="grid-template-columns:repeat(4,1fr);grid-template-rows:1fr 1fr"><div>主打</div><div>團體</div><div>訂房</div><div>機票</div><div>會員</div><div>真人</div><div>粉專</div><div>講座</div></div>
+  <span class="cnt">8 格</span><span class="t">功能最齊，但每格在手機上偏小，新客不知道先點哪裡</span></div>
+ <div class="col"><span class="name">五福</span>
+  <div class="ph" style="grid-template-columns:repeat(3,1fr);grid-template-rows:1.3fr 1fr"><div class="big" style="grid-column:span 3">季節促銷大圖</div><div>活動</div><div>成團</div><div>出發地</div></div>
+  <span class="cnt">1 大＋3 小</span><span class="t">促銷導向、視覺強，但沒有引導「還沒決定」的客人</span></div>
+ <div class="col"><span class="name">可樂</span>
+  <div class="ph" style="grid-template-columns:repeat(3,1fr);grid-template-rows:.35fr 1fr 1fr"><div class="tab" style="grid-column:span 2">本月主打</div><div class="tab">會員</div><div>照片</div><div>照片</div><div>照片</div><div>照片</div><div>照片</div><div>照片</div></div>
+  <span class="cnt">2 分頁 × 6 格</span><span class="t">分頁區分主打與會員；另以「旅遊問與答」卡片做互動推薦</span></div>
+ <div class="col"><span class="name">永信（現況）</span>
+  <div class="ph none">實測時未顯示圖文選單<br>由真人逐一回覆</div>
+  <span class="cnt">0 格</span><span class="t">客人說「都可以」時只能收到官網首頁連結，引導在此中斷</span></div>
+ <div class="col rec"><span class="name">永信（建議）</span>
+  <div class="ph ys" style="grid-template-columns:repeat(3,1fr);grid-template-rows:.35fr 1fr 1fr"><div class="tab on" style="grid-column:span 2">找旅程</div><div class="tab">我的旅程</div><div class="big" style="grid-column:span 2">旅行風格測驗</div><div>探索地圖</div><div>本季精選</div><div>詢價</div><div>真人顧問</div></div>
+  <span class="cnt">2 分頁：1 大＋4 小／6 格</span><span class="t">新客最大的入口給測驗，顧問固定在右下；老客分頁以旅人護照為首</span></div>
+</div></div></body></html>

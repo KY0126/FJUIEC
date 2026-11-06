@@ -1,0 +1,10 @@
+__pycache__/
+print/proposal.pdf
+print/print.html
+print/*.png
+!print/wt/*.png
+!print/w/*.png
+persona/*.html
+persona/*_prev.png
+*.pyc
+geo/node_modules/
