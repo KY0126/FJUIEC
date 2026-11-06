@@ -195,7 +195,7 @@ export class Player {
       }
     }
     let position;
-    // 永信旅人小鎮：只出生在地圖右半（永信街區），不會一出生就要搭火車
+    // 永信旅人小鎮：只出生在地圖右半（永信門市），不會一出生就要搭火車
     for (let attempt = 0; attempt < 50; attempt++) {
       const candidate = {
         x: HUALIEN_X + Math.floor(Math.random() * (game.worldMap.width - HUALIEN_X)),

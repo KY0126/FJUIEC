@@ -74,7 +74,7 @@ export default function Game() {
       localStorage.setItem('daxue-light', light);
     } catch {}
   }, [light]);
-  // 永信旅人小鎮：一開始就把鏡頭移到永信街區（地圖右半）
+  // 永信旅人小鎮：一開始就把鏡頭移到永信門市（地圖右半）
   const camInit = useRef(false);
   useEffect(() => {
     if (!game || camInit.current) return;
@@ -128,7 +128,7 @@ https://github.com/michalochman/react-pixi-fiber/issues/145#issuecomment-5315492
               onClick={() => camera('hualien')}
               className="rounded bg-brown-900/80 px-3 py-1 text-sm font-bold text-brown-100 hover:bg-clay-700"
             >
-              🏬 永信街區
+              🏬 永信門市
             </button>
             <button
               onClick={() => setLight(light === 'auto' ? 'day' : light === 'day' ? 'night' : 'auto')}

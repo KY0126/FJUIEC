@@ -101,7 +101,7 @@ export const PixiGame = (props: {
         !isOffstage(props.game.playerDescriptions.get(p.id)?.name, now, planOf(props.game, p.id))),
   );
 
-  // 地圖左上的「永信街區」按鈕：切換鏡頭
+  // 地圖左上的「永信門市」按鈕：切換鏡頭
   useEffect(() => {
     const go = (e: Event) => {
       const region = (e as CustomEvent).detail as string;
