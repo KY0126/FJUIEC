@@ -188,7 +188,7 @@ function tripCard(r, k){
   const t = r.t, fav = S.favs.includes(t.name);
   return `<div class="card" data-k="${k}"><span class="t">${t.name}</span>
     <span class="m"><span>${AREA_NAME[regionOf(t).area]}・${regionOf(t).full}</span><span>${t.days} 天</span></span>
-    <span class="price">約 ${t.from.toFixed(1)} 萬元起</span>
+    <span class="price">約 ${t.from.toFixed(1)} 萬元起${t.est?'（示意）':''}</span>
     <span class="ttags"><i>步行 ${WALK[t.walk]}</i><i>最長車程 ${t.maxDrive} 小時</i><i>室內 ${t.indoor}%</i><i class="${t.shop?'warn':'ok'}">${t.shop?'含購物站':'無購物站'}</i></span>
     <span class="when">建議出發 ${t.months}｜當地均溫 ${t.temp}°C</span>
     ${r.why.length?`<span class="why">推薦原因：${r.why.join('、')}</span>`:''}
@@ -274,7 +274,7 @@ function tripView(){
   const el = $h(`<section class="screen">
     <button class="back" id="bk" style="align-self:flex-start">← 返回</button>
     <div class="page"><div class="trip-h"><p class="eyebrow">${AREA_NAME[g.area]}・${g.full}</p><h2>${title}</h2><p>${sub||''}</p></div>
-      <div class="kv"><span>${t.days} 天</span><span>約 ${t.from.toFixed(1)} 萬元起</span></div>
+      <div class="kv"><span>${t.days} 天</span><span>約 ${t.from.toFixed(1)} 萬元起${t.est?'（示意）':''}</span></div>
       <span class="ttags"><i>步行 ${WALK[t.walk]}</i><i>最長車程 ${t.maxDrive} 小時</i><i>室內 ${t.indoor}%</i><i class="${t.shop?'warn':'ok'}">${t.shop?'含購物站':'無購物站'}</i></span>
       ${r.why.length?`<p class="why">推薦原因：${r.why.join('、')}</p>`:''}
       ${fits?`<p class="help" style="margin:0">最適合：${fits}</p>`:''}</div>

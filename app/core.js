@@ -140,7 +140,20 @@ const TRIPS = [
  {name:'希臘愛琴海 10 天｜兩島連泊、海邊留白時光',region:'greece',days:10,from:10.4,band:2,pace:'slow',tags:['美食'],stay:true,walk:2,maxDrive:1.5,indoor:20,shop:false,months:'5–6、9–10 月',temp:'20–27'},
  {name:'北歐極光 10 天｜玻璃屋兩晚、白天可選活動',region:'nordic-aurora',days:10,from:13.5,band:3,pace:'balanced',tags:['極光','咖啡與甜點'],stay:true,walk:1,maxDrive:2.5,indoor:50,shop:false,months:'12–3 月',temp:'-15–0'},
  {name:'冰島極光 10 天｜冰河健行、藍冰洞全程帶領',region:'nordic-aurora',days:10,from:16.3,band:4,pace:'precise',tags:['極光'],stay:false,drive:true,walk:3,maxDrive:4,indoor:15,shop:false,months:'11–3 月',temp:'-3–3'},
- {name:'克斯十六湖 10 天｜國家公園、湖區一晚',region:'balkans',days:10,from:7.7,band:0,pace:'balanced',tags:['花季'],stay:false,drive:true,walk:3,maxDrive:5,indoor:15,shop:false,months:'5–6、9 月',temp:'16–24'}
+ {name:'克斯十六湖 10 天｜國家公園、湖區一晚',region:'balkans',days:10,from:7.7,band:0,pace:'balanced',tags:['花季'],stay:false,drive:true,walk:3,maxDrive:5,indoor:15,shop:false,months:'5–6、9 月',temp:'16–24'},
+ {name:'巴黎精品與甜點 10 天｜巴黎連泊、精品自由逛、購物後司機送回飯店',region:'france',days:10,from:15.3,band:3,pace:'slow',tags:['咖啡與甜點','藝術與建築','美食'],stay:true,walk:2,maxDrive:1.5,indoor:60,shop:false,months:'3–5、10 月',temp:'10–18'},
+ {name:'法瑞 13 天｜巴黎連泊、瑞士兩段景觀列車',region:'fr-ch',days:13,from:15.9,est:true,band:3,pace:'balanced',tags:['藝術與建築','花季'],stay:true,walk:2,maxDrive:4,indoor:40,shop:false,months:'5–6、9 月',temp:'14–23'},
+ {name:'北歐四國 12 天｜峽灣遊船、哥本哈根與斯德哥爾摩導覽',region:'nordic',days:12,from:10.3,band:2,pace:'precise',tags:['藝術與建築','咖啡與甜點'],stay:false,drive:true,walk:2,maxDrive:4.5,indoor:35,shop:true,months:'6–8 月',temp:'14–22'},
+ {name:'英國蘇格蘭 10 天｜愛丁堡連泊、高地火車、英式下午茶',region:'uk',days:10,from:12.4,band:2,pace:'balanced',tags:['藝術與建築','咖啡與甜點'],stay:true,walk:2,maxDrive:4,indoor:45,shop:false,months:'5–9 月',temp:'12–19'},
+ {name:'德國城堡 10 天｜浪漫大道、新天鵝堡全程導覽',region:'germany',days:10,from:7.5,band:0,pace:'precise',tags:['藝術與建築'],stay:false,drive:true,walk:2,maxDrive:5,indoor:40,shop:true,months:'5–6、9、12 月',temp:'13–22'},
+ {name:'多洛米堤 12 天｜山屋兩晚、纜車與高山步道',region:'dolomites',days:12,from:19.8,band:4,pace:'balanced',tags:['花季'],stay:true,walk:3,maxDrive:3.5,indoor:10,shop:false,months:'6–9 月',temp:'10–20'},
+ {name:'波蘭波羅的海 12 天｜四國古城、海岸半日自由',region:'poland',days:12,from:11.0,band:2,pace:'balanced',tags:['藝術與建築','美食'],stay:false,drive:true,walk:3,maxDrive:5,indoor:35,shop:false,months:'5–9 月',temp:'14–22'},
+ {name:'奧捷匈 10 天｜多瑙河遊船、布達佩斯溫泉',region:'at-cz-hu',days:10,from:7.6,band:0,pace:'balanced',tags:['藝術與建築','美食'],stay:false,drive:true,walk:2,maxDrive:4.5,indoor:40,shop:true,months:'4–6、9–10、12 月',temp:'12–22'},
+ {name:'羅保 11 天｜德古拉城堡、玫瑰谷花季全程導覽',region:'ro-bg',days:11,from:10.0,band:2,pace:'precise',tags:['花季','藝術與建築'],stay:false,drive:true,walk:3,maxDrive:5,indoor:30,shop:false,months:'5–6 月',temp:'16–26'},
+ {name:'西葡 13 天｜塞維亞與里斯本各連泊三晚',region:'es-pt',days:13,from:12.5,band:2,pace:'slow',tags:['美食','藝術與建築','咖啡與甜點'],stay:true,walk:3,maxDrive:4,indoor:40,shop:false,months:'3–5、10–11 月',temp:'15–24'},
+ {name:'西葡摩 16 天｜撒哈拉沙漠一夜、藍色山城',region:'es-pt-ma',days:16,from:19.0,band:4,pace:'precise',tags:['藝術與建築','美食'],stay:false,drive:true,walk:3,maxDrive:6,indoor:25,shop:true,months:'3–5、10–11 月',temp:'15–27'},
+ {name:'西西里 10 天｜陶米納連泊、巴洛克小鎮與海邊甜點',region:'sicily',days:10,from:10.0,band:2,pace:'slow',tags:['美食','咖啡與甜點','藝術與建築'],stay:true,walk:2,maxDrive:3.5,indoor:25,shop:false,months:'4–5、10 月',temp:'17–24'},
+ {name:'馬爾他 12 天｜瓦萊塔連泊、海岸留白時光',region:'malta',days:12,from:12.9,est:true,band:2,pace:'slow',tags:['美食','藝術與建築'],stay:true,walk:2,maxDrive:1.5,indoor:30,shop:false,months:'4–5、10 月',temp:'18–24'}
 ];
 
 const state = {ans:{}, pace:null, view:null, filters:new Set(), mapSel:null};
