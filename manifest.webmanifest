@@ -1,0 +1,17 @@
+{
+  "name": "歐洲旅人護照｜旅行風格測驗",
+  "short_name": "旅人護照",
+  "description": "一分鐘找到自己的歐洲：12 題旅行風格測驗（課程原型）",
+  "lang": "zh-Hant",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FBF7EF",
+  "theme_color": "#FBF7EF",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
