@@ -87,6 +87,10 @@ create table if not exists public.events (
 
 create index if not exists events_type_time on public.events (type, created_at);
 create index if not exists inquiries_status on public.inquiries (status);
+create index if not exists favorites_customer on public.favorites (customer_id);
+create index if not exists inquiries_customer on public.inquiries (customer_id);
+create index if not exists notes_customer on public.advisor_notes (customer_id);
+create index if not exists events_customer on public.events (customer_id);
 
 -- ========== 權限（RLS） ==========
 alter table public.staff enable row level security;
@@ -99,50 +103,50 @@ alter table public.events enable row level security;
 
 -- 員工：只能看自己的員工資料
 drop policy if exists staff_self on public.staff;
-create policy staff_self on public.staff for select using (user_id = auth.uid());
+create policy staff_self on public.staff for select using (user_id = (select auth.uid()));
 
 -- 客人：本人讀寫自己那一筆；顧問可讀、可改 NES
 drop policy if exists cust_own on public.customers;
 create policy cust_own on public.customers for all
-  using (user_id = auth.uid()) with check (user_id = auth.uid());
+  using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
 drop policy if exists cust_advisor_read on public.customers;
-create policy cust_advisor_read on public.customers for select using (public.staff_role() = 'advisor');
+create policy cust_advisor_read on public.customers for select using ((select public.staff_role()) = 'advisor');
 drop policy if exists cust_advisor_update on public.customers;
-create policy cust_advisor_update on public.customers for update using (public.staff_role() = 'advisor');
+create policy cust_advisor_update on public.customers for update using ((select public.staff_role()) = 'advisor');
 
 -- 檔案、收藏：本人讀寫；顧問可讀
 drop policy if exists prof_own on public.profiles;
 create policy prof_own on public.profiles for all
-  using (customer_id in (select id from public.customers where user_id = auth.uid()))
-  with check (customer_id in (select id from public.customers where user_id = auth.uid()));
+  using (customer_id in (select id from public.customers where user_id = (select auth.uid())))
+  with check (customer_id in (select id from public.customers where user_id = (select auth.uid())));
 drop policy if exists prof_advisor on public.profiles;
-create policy prof_advisor on public.profiles for select using (public.staff_role() = 'advisor');
+create policy prof_advisor on public.profiles for select using ((select public.staff_role()) = 'advisor');
 
 drop policy if exists fav_own on public.favorites;
 create policy fav_own on public.favorites for all
-  using (customer_id in (select id from public.customers where user_id = auth.uid()))
-  with check (customer_id in (select id from public.customers where user_id = auth.uid()));
+  using (customer_id in (select id from public.customers where user_id = (select auth.uid())))
+  with check (customer_id in (select id from public.customers where user_id = (select auth.uid())));
 drop policy if exists fav_advisor on public.favorites;
-create policy fav_advisor on public.favorites for select using (public.staff_role() = 'advisor');
+create policy fav_advisor on public.favorites for select using ((select public.staff_role()) = 'advisor');
 
 -- 詢問：本人建立與讀取；顧問讀取與更新狀態
 drop policy if exists inq_own_read on public.inquiries;
 create policy inq_own_read on public.inquiries for select
-  using (customer_id in (select id from public.customers where user_id = auth.uid()));
+  using (customer_id in (select id from public.customers where user_id = (select auth.uid())));
 drop policy if exists inq_own_insert on public.inquiries;
 create policy inq_own_insert on public.inquiries for insert
-  with check (customer_id in (select id from public.customers where user_id = auth.uid()));
+  with check (customer_id in (select id from public.customers where user_id = (select auth.uid())));
 drop policy if exists inq_advisor on public.inquiries;
-create policy inq_advisor on public.inquiries for all using (public.staff_role() = 'advisor');
+create policy inq_advisor on public.inquiries for all using ((select public.staff_role()) = 'advisor');
 
 -- 顧問註記：只有顧問
 drop policy if exists notes_advisor on public.advisor_notes;
-create policy notes_advisor on public.advisor_notes for all using (public.staff_role() = 'advisor');
+create policy notes_advisor on public.advisor_notes for all using ((select public.staff_role()) = 'advisor');
 
 -- 行為紀錄：本人只能新增；不開放讀取明細（主管看統計檢視表）
 drop policy if exists ev_insert on public.events;
 create policy ev_insert on public.events for insert
-  with check (customer_id is null or customer_id in (select id from public.customers where user_id = auth.uid()));
+  with check (customer_id is null or customer_id in (select id from public.customers where user_id = (select auth.uid())));
 
 -- ========== 主管端統計（只回傳彙總，不含個人明細） ==========
 create or replace function public.mgr_funnel()
@@ -180,6 +184,10 @@ returns setof public.customers
 language sql stable security definer set search_path = public as $$
   select * from customers where code = upper(c) and public.staff_role() = 'advisor'
 $$;
+
+-- 函式只開放給已登入者（含匿名旅客）；函式內再檢查是否為顧問或主管
+revoke execute on function public.mgr_funnel(), public.mgr_segments(), public.mgr_trips(), public.find_by_code(text), public.staff_role() from public, anon;
+grant execute on function public.mgr_funnel(), public.mgr_segments(), public.mgr_trips(), public.find_by_code(text), public.staff_role() to authenticated;
 
 -- ========== 即時更新（顧問端清單） ==========
 do $$ begin
