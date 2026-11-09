@@ -104,7 +104,7 @@
 - 啟動頁有三種進入方式：同意並開始（存到 Supabase）、不儲存先試玩（只存在手機）、「我已經是永信旅客」→ 示範帳號 **林雅婷**（已測驗、填 2 張檔案、有旅伴怡君，只存在手機）。
 - 品牌色：主橘 #F39500、文字橘 #B85C00、深藍 #00223D、米白底 #F9F6EF；主要按鈕有立體邊與按壓動畫，手機開「減少動態效果」時關閉動畫。
 - 價格標「示意」的行程（法瑞、馬爾他）官網沒有公開價格，待業師確認。
-- 簡報 QR 與可點擊的縮網址（`p3/`、`p5/`、`p6/`、`p8/`、`q/` 是轉址頁）：[/p3](https://ky0126.github.io/FJUIEC/p3) App 首頁、[/p5](https://ky0126.github.io/FJUIEC/p5) 巴黎精品與甜點（`#/trip/13`）、[/p6](https://ky0126.github.io/FJUIEC/p6) 旅伴、[/p8](https://ky0126.github.io/FJUIEC/p8) 點數明細、[/q](https://ky0126.github.io/FJUIEC/q) 課堂測驗；各自帶 `src` 記在客人來源。行程用順序編號，**新增行程請加在 `TRIPS` 最後面**，否則 /p5 會指到別團。
+- 簡報只有 p.3 放 QR 與可點擊的網址 [ky0126.github.io/FJUIEC/find-my-europe](https://ky0126.github.io/FJUIEC/find-my-europe)（取自標語「一分鐘找到自己的歐洲」）：轉到 App 首頁並記來源 `src=deck`。轉址頁是根目錄的 `find-my-europe.html` 與 `find-my-europe/index.html`（網址結尾有沒有斜線都能開）。
 
 ## 檔案結構
 
