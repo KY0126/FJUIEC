@@ -202,7 +202,7 @@
 | 歡迎訊息 | `?src=line_welcome` |
 | 主頁按鈕 | `?src=line_profile` |
 | 自動回應 | `?src=line_roles`、`line_passport`、`line_keyword`、`line_fallback`、`line_about` |
-| 課堂 QR | `?src=class_qr` |
+| 課堂 QR | `?src=class_qr`；`測驗QRCode_課堂用.png` 旁邊請附可點擊的縮網址 [ky0126.github.io/FJUIEC/q](https://ky0126.github.io/FJUIEC/q)（同樣記為課堂來源） |
 | IG | `?src=ig` |
 
 **加好友 QR**：主頁 → 加入好友的工具 → QR Code，下載後放進簡報與海報。

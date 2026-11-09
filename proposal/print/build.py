@@ -89,7 +89,7 @@ pages.append(page(1, '提案摘要', f'''
 <div><b>39%</b><span>永信官網歐洲團體行程中，團費在 10 萬元以下的比例；這些團已經有了，只是客人不容易找到</span></div>
 <div><b>1 條線、4 個月</b><span>試辦範圍與決策時間點</span></div></div>
 {t([['問題', '方案', '驗證', '資源'], ['引導中斷、年輕客排斥被安排、資料分散、老客沉睡', '旅行風格測驗、同團三節奏、LINE 即時回覆、歐洲旅人護照', '一條歐洲線、新客與老客兩條 A/B、第 4 個月底決策', 'LINE 官方帳號、訂單 CSV、顧問人力（待永信提供）']], widths=['25%', '27%', '26%', '22%'])}
-<div class="qr"><img src="qr_pdf.png" style="width:22mm;height:22mm;flex:none"><span><b>可操作原型</b>　ky0126.github.io/FJUIEC<br>手機掃描即可體驗 12 題測驗、五種旅人角色卡、推薦行程與歐洲探索地圖；作答匿名，每一題有多少人作答都會記下來，看得出客人在哪一題離開。<br>完整畫面請見附錄 A，LINE 三階段介面與後台截圖見附錄 B。</span></div>
+<div class="qr"><a href="https://ky0126.github.io/FJUIEC/" style="flex:none"><img src="qr_pdf.png" style="width:22mm;height:22mm;display:block"></a><span><b>可操作原型</b>　<a href="https://ky0126.github.io/FJUIEC/" style="color:inherit">ky0126.github.io/FJUIEC</a><br>手機掃描即可體驗 12 題測驗、五種旅人角色卡、推薦行程與歐洲探索地圖；作答匿名，每一題有多少人作答都會記下來，看得出客人在哪一題離開。<br>完整畫面請見附錄 A，LINE 三階段介面與後台截圖見附錄 B。</span></div>
 '''))
 # ---------- P2 ----------
 pages.append(page(2, '一、觀察到的產業或使用者問題', f'''
