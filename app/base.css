@@ -5,7 +5,7 @@
   --bg:#EFE7D8; --page:#FBF7EF; --ink:#2B2B33; --muted:#665F53; --line:#E2D7C2;
   --cover:#F7F1E5; --cover-ink:#1E3A5C; --cover-line:#E2D6BE; --brand:#F39500; --accent:#E8A54F; --on-accent:#1E3A5C; --cta-edge:#C98A3E; --cta-glow:rgba(232,165,79,.32); --accent-soft:#FBEEDC; --pin:#1E3A5C;
   --stamp:#2F4C6E; --sea:#DCE6EE; --land:#F7F1E5; --land-off:#E8E1D3; --border:#C4B8A2; --v1:#F1D9AE; --v2:#E3A55A; --v3:#A8692C; --v-ink:#4A2E0F;
-  --east:#EBDDC3; --west:#FDE3B5; --south:#FAEFC8; --north:#D6E1EC; --off-area:#CFC8C1; --sel:#2A7F7A; --sel-ink:#FFFFFF;
+  --east:#EBDDC3; --west:#FDE3B5; --south:#FAEFC8; --north:#D6E1EC; --off-area:#CFC8C1; --sel:#00223D; --sel-ink:#FFFFFF;
   --f-display:"LXGW WenKai TC","Noto Sans TC","Noto Sans CJK TC","PingFang TC","Microsoft JhengHei",serif;
   --f-body:"Noto Sans TC","Noto Sans CJK TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
   --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
@@ -14,12 +14,12 @@
   --bg:#0D1620; --page:#15212D; --ink:#E9EEF3; --muted:#9AA7B4; --line:#283543;
   --cover:#22303D; --cover-ink:#F3EEE4; --cover-line:#3A4756; --brand:#F39500; --accent:#E3A457; --on-accent:#1E2A36; --cta-edge:#9C6A2E; --cta-glow:rgba(0,0,0,.35); --accent-soft:#3A2D1C; --pin:#0D1620;
   --stamp:#9DBBDA; --sea:#0F1C29; --land:#22303E; --land-off:#1A2531; --border:#3A4A5B; --v1:#5A4628; --v2:#B8823F; --v3:#F0C27E; --v-ink:#1A1206;
-  --east:#3B3427; --west:#4A3A1E; --south:#45401F; --north:#24384C; --off-area:#10161D; --sel:#4FB3AA; --sel-ink:#0B1A19; color-scheme:dark}}
+  --east:#3B3427; --west:#4A3A1E; --south:#45401F; --north:#24384C; --off-area:#10161D; --sel:#8FB3D6; --sel-ink:#0B1A19; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0D1620; --page:#15212D; --ink:#E9EEF3; --muted:#9AA7B4; --line:#283543;
   --cover:#22303D; --cover-ink:#F3EEE4; --cover-line:#3A4756; --brand:#F39500; --accent:#E3A457; --on-accent:#1E2A36; --cta-edge:#9C6A2E; --cta-glow:rgba(0,0,0,.35); --accent-soft:#3A2D1C; --pin:#0D1620;
   --stamp:#9DBBDA; --sea:#0F1C29; --land:#22303E; --land-off:#1A2531; --border:#3A4A5B; --v1:#5A4628; --v2:#B8823F; --v3:#F0C27E; --v-ink:#1A1206;
-  --east:#3B3427; --west:#4A3A1E; --south:#45401F; --north:#24384C; --off-area:#10161D; --sel:#4FB3AA; --sel-ink:#0B1A19; color-scheme:dark}
+  --east:#3B3427; --west:#4A3A1E; --south:#45401F; --north:#24384C; --off-area:#10161D; --sel:#8FB3D6; --sel-ink:#0B1A19; color-scheme:dark}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.6;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
