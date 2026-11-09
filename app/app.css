@@ -42,8 +42,10 @@ p{margin:0}
 .danger.armed{border-color:var(--alert);color:var(--alert);font-weight:700}
 
 /* ---- 換頁動畫 ---- */
-.screen{animation:inF .24s ease-out}
-.screen.in-back{animation-name:inB}
+section.screen{animation:none}
+/* 動畫套在每個區塊上，不套在整頁：整頁有 transform 時，裡面固定位置的列（比較列、行程頂部列、購買列）會暫時跑位 */
+.screen>:not(.cmp-bar):not(.trip-top):not(.buy-bar){animation:inF .24s ease-out}
+.screen.in-back>:not(.cmp-bar):not(.trip-top):not(.buy-bar){animation-name:inB}
 @keyframes inF{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:none}}
 @keyframes inB{from{opacity:0;transform:translateX(-18px)}to{opacity:1;transform:none}}
 .pop-in{animation:pop .5s cubic-bezier(.2,1.4,.4,1)}
@@ -52,7 +54,7 @@ p{margin:0}
 @keyframes beat{50%{transform:scale(1.3)}}
 .plus-pop{position:fixed;left:50%;top:40%;transform:translate(-50%,-50%);background:var(--brand);color:var(--ink);font-weight:800;font-size:28px;padding:14px 26px;border-radius:999px;box-shadow:0 4px 0 #C77700,0 12px 30px rgba(185,92,0,.3);z-index:50;animation:plus 1.4s ease-out forwards;pointer-events:none}
 @keyframes plus{0%{opacity:0;transform:translate(-50%,-30%) scale(.6)}20%{opacity:1;transform:translate(-50%,-50%) scale(1.08)}35%{transform:translate(-50%,-50%) scale(1)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-90%)}}
-@media (prefers-reduced-motion:reduce){.screen,.pop-in,.heart.pop,.plus-pop{animation:none}.b1,.b2,.b3,.op,.tb,.hb{transition:none}}
+@media (prefers-reduced-motion:reduce){.screen>*,.pop-in,.heart.pop,.plus-pop{animation:none}.b1,.b2,.b3,.op,.tb,.hb{transition:none}}
 
 /* ---- 頂部列、分頁列 ---- */
 .bar{display:flex;align-items:center;gap:12px;margin:0 0 4px}
@@ -312,3 +314,43 @@ p{margin:0}
 .tier span{color:var(--ink)}
 .rows.has-bar{padding-bottom:70px}
 .adv #body{display:flex;flex-direction:column;gap:14px}
+
+/* ---- 固定頂部列、回首頁 ---- */
+.bar.sticky{position:sticky;top:0;z-index:12;background:var(--cream);margin:calc(-16px - env(safe-area-inset-top,0px)) -20px 0;padding:calc(10px + env(safe-area-inset-top,0px)) 20px 10px;transition:box-shadow .2s}
+body.scrolled .bar.sticky{box-shadow:0 1px 0 var(--line),0 4px 12px rgba(0,0,0,.04)}
+.quiz .bar.sticky{margin:calc(-12px - env(safe-area-inset-top,0px)) -20px 0}
+.bar.big .bar-t{text-align:left;font-size:26px}
+.bar-r{display:flex;align-items:center;gap:8px;flex:none}
+.bar-t{cursor:default}
+.res-bar .bar-t{font-size:13px;color:var(--muted);font-weight:500}
+.prev-q{align-self:center;font-size:14px;color:var(--muted);text-decoration:none;padding:6px 12px}
+/* 行程頁：封面上浮著的頂部列，滑過封面後變成實心並顯示團名 */
+.trip-top{position:fixed;top:0;left:0;right:0;max-width:480px;margin:0 auto;z-index:15;display:flex;align-items:center;gap:8px;padding:calc(12px + env(safe-area-inset-top,0px)) 16px 10px;transition:background .2s,box-shadow .2s}
+.trip-top .bar-t{flex:1;font-size:16px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:0;transition:opacity .2s}
+.trip-top.solid{background:var(--cream);box-shadow:0 1px 0 var(--line)}
+.trip-top.solid .bar-t{opacity:1}
+.trip-top .icon-btn.heart{color:#B8AE9C}
+.trip-top .icon-btn.heart[aria-pressed="true"]{color:var(--alert)}
+
+/* ---- 懸浮按鈕：回到頂部（上）、LINE（下） ---- */
+.fabs{position:fixed;right:calc(max(0px,(100vw - 480px) / 2) + 16px);bottom:calc(24px + env(safe-area-inset-bottom,0px));z-index:18;display:flex;flex-direction:column;align-items:center;gap:10px;transition:bottom .2s}
+body.has-tabs .fabs{bottom:calc(86px + env(safe-area-inset-bottom,0px))}
+body.has-cmp .fabs{bottom:calc(150px + env(safe-area-inset-bottom,0px))}
+body.has-buy .fabs{bottom:calc(96px + env(safe-area-inset-bottom,0px))}
+.fab{border:0;border-radius:50%;display:grid;place-items:center;cursor:pointer;padding:0;transition:transform .1s,box-shadow .1s}
+.fab.line{width:56px;height:56px;background:#06C755;box-shadow:0 3px 0 #04913E,0 6px 14px rgba(0,0,0,.18)}
+.fab.line svg{width:40px;height:40px}
+.fab.line:active{transform:translateY(2px) scale(.94);box-shadow:0 1px 0 #04913E}
+.fab.top{width:44px;height:44px;background:#fff;color:var(--ink);box-shadow:0 2px 0 #E0D5C2,0 4px 12px rgba(0,0,0,.12);animation:fabIn .2s ease-out}
+.fab.top:active{transform:translateY(1px) scale(.94)}
+.fab-tip{position:absolute;right:66px;bottom:12px;background:var(--navy);color:#fff;font-size:13px;font-weight:700;padding:7px 11px;border-radius:10px;white-space:nowrap;animation:fabIn .25s ease-out}
+.fab-tip::after{content:"";position:absolute;right:-5px;top:50%;margin-top:-5px;border:5px solid transparent;border-right:0;border-left-color:var(--navy)}
+@keyframes fabIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.sheet-opt{display:flex;flex-direction:column;gap:2px;text-align:left;background:#fff;border:1.5px solid var(--line);border-radius:14px;padding:14px 16px;font:inherit;color:var(--ink);cursor:pointer;box-shadow:0 2px 0 #EFE7D8}
+.sheet-opt b{font-size:16px}.sheet-opt span{font-size:13px;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){.fab.top,.fab-tip{animation:none}.trip-top,.trip-top .bar-t,.fabs{transition:none}}
+
+.fab.line{transition:transform .2s,opacity .2s,box-shadow .1s}
+.fab.line.away{transform:translateY(16px) scale(.8);opacity:0;pointer-events:none}
+body.has-cmp .toast{bottom:calc(150px + env(safe-area-inset-bottom,0px))}
+body.has-buy .toast{bottom:calc(100px + env(safe-area-inset-bottom,0px))}

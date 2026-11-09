@@ -93,20 +93,29 @@ const ic = (k, cls='') => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidde
 
 /* ===== 路由 ===== */
 const route = () => (location.hash.replace(/^#\/?/, '') || 'home').split('/');
+if ('scrollRestoration' in history) history.scrollRestoration = 'manual';   // 捲動位置由 App 自己還原
 let curIdx = 0, dir = 'fwd';
-function nav(p, replace){ const h = '#/' + p;
-  if (replace) history.replaceState({i:curIdx}, '', h); else history.pushState({i:++curIdx}, '', h);
+const scrollMem = {};                       // 每一筆歷史紀錄離開時捲到哪裡，返回時還原
+function nav(p, replace, extra={}){ const h = '#/' + p;
+  if (replace) history.replaceState({i:curIdx, ...extra}, '', h);
+  else { scrollMem[curIdx] = scrollY; history.pushState({i:++curIdx, ...extra}, '', h); }
   render(); }
 window.addEventListener('popstate', e => { const i = e.state && typeof e.state.i === 'number' ? e.state.i : null;
-  if (i === null) { history.replaceState({i:++curIdx}, '', location.hash); } else { if (i < curIdx) dir = 'back'; curIdx = i; }
+  if (i === null) { scrollMem[curIdx] = scrollY; history.replaceState({i:++curIdx}, '', location.hash); } else { if (i < curIdx) dir = 'back'; curIdx = i; }
   render(); });
 document.addEventListener('click', e => { const a = e.target.closest('a[href^="#/"]'); if (!a || e.defaultPrevented) return;
   e.preventDefault(); const p = a.getAttribute('href').slice(2); if ('#/' + p !== location.hash) nav(p); });
-function back(fallback){ dir = 'back'; if (curIdx > 0) history.back(); else nav(fallback || 'home', true); }
-const PARENT = {trip:'explore', compare:'explore', advisor:'home', inbox:'home', points:'pass', card:'me', quiz:'home', welcome:'home', result:'home'};
+/* 上一頁：App 內有上一頁就回去；從 QR、連結或通知直接打開的，回到這頁的上層，不會跳出 App */
+function parentOf(p){ const r = p.split('/');
+  if (r[0] === 'trip' || r[0] === 'compare') return 'explore';
+  if (['explore','pass','me','inbox'].includes(r[0]) && r[1]) return r[0];
+  if (!r[0] || r[0] === 'home') return null;
+  return 'home'; }
+function back(fallback){ dir = 'back'; if (curIdx > 0) history.back(); else nav(fallback || parentOf(route().join('/')) || 'home', true); }
 const GATED = new Set(['buddy','pass','me','compare','advisor']);
 const TABS = [['home','首頁'],['explore','探索'],['buddy','旅伴'],['pass','護照'],['me','我的']];
 const TAB_ROOTS = new Set(['home','explore','buddy','pass','me']);
+const NO_TOP = new Set(['quiz','welcome','result']);
 
 function render(){
   const r = route(), app = document.getElementById('app');
@@ -114,23 +123,88 @@ function render(){
   const views = {home:()=>S.quizDone?homeView():homeNewView(), welcome:welcomeView, quiz:quizView, result:resultView,
     explore:()=>r[1]==='map'?mapView():exploreView(), trip:tripView, compare:compareView, buddy:buddyView, pass:()=>r[1]==='points'?pointsView():passView(),
     me:()=>r[1]==='card'?cardQView(r[2], +r[3]||0):meView(), inbox:inboxView, advisor:advisorView};
-  const v = (views[r[0]] || views.home)();
-  v.classList.add('screen', dir === 'back' ? 'in-back' : 'in-fwd'); dir = 'fwd';
+  onScroll = null;
+  const v = (views[r[0]] || views.home)(), goingBack = dir === 'back';
+  v.classList.add('screen', goingBack ? 'in-back' : 'in-fwd'); dir = 'fwd';
+  v.querySelectorAll('[data-back]').forEach(b => { if (!b.onclick) b.onclick = () => back(); });
+  v.querySelectorAll('[data-top]').forEach(b => { if (!b.onclick) b.onclick = toTop; });
   app.replaceChildren(v);
   const tabbed = TAB_ROOTS.has(r[0]) && !(r[0]==='pass' && r[1]==='points') && !(r[0]==='me' && r[1]==='card');
   drawTabs(tabbed ? r[0] : null);
   document.body.classList.toggle('has-tabs', tabbed);
-  scrollTo(0, 0);
+  document.body.classList.toggle('has-cmp', !!v.querySelector('.cmp-bar'));
+  document.body.classList.toggle('has-buy', !!v.querySelector('.buy-bar'));
+  fabs.line.hidden = !tabbed; fabs.page = r.join('/'); fabs.noTop = NO_TOP.has(r[0]) || (r[0]==='me' && r[1]==='card');
+  if (tabbed) showFabTip();
+  const y = goingBack ? (scrollMem[curIdx] || 0) : 0;
+  scrollTo(0, y); requestAnimationFrame(() => { scrollTo(0, y); scrolled(); });
 }
 function drawTabs(cur){
   const n = document.getElementById('tabs'); n.hidden = !cur; if (!cur) return;
-  n.innerHTML = TABS.map(([k,t]) => `<button class="tb" data-t="${k}" ${cur===k?'aria-current="page"':''}>${ic(k)}<span>${t}</span>${k==='buddy'&&S.quizDone&&S.buddies.some(b=>!b.seen)?'<i class="dot"></i>':''}</button>`).join('');
-  n.querySelectorAll('button').forEach(b => b.onclick = () => { if (b.dataset.t !== cur) nav(b.dataset.t); });
+  n.innerHTML = TABS.map(([k,t]) => `<button class="tb" data-t="${k}" aria-label="${t}" ${cur===k?'aria-current="page"':''}>${ic(k)}<span>${t}</span>${k==='buddy'&&S.quizDone&&S.buddies.some(b=>!b.seen)?'<i class="dot"></i>':''}</button>`).join('');
+  n.querySelectorAll('button').forEach(b => b.onclick = () => {
+    if (b.dataset.t !== cur) return nav(b.dataset.t, false, {tab:true});
+    // 再點一次目前的分頁：不在頂部就捲回頂部；已在頂部就回到這個分頁的第一層（例：地圖 → 推薦清單）
+    if (scrollY > 40) return toTop();
+    if (route()[1]) nav(cur, true, {tab:true});
+  });
 }
-const topbar = (title, opts={}) => `<header class="bar">
-  <button class="icon-btn" data-back aria-label="返回">${ic(opts.x?'close':'back')}</button>
-  <h1 class="bar-t">${title}</h1>${opts.right||'<span class="icon-btn ghost"></span>'}</header>`;
-function bindBack(el, fb){ el.querySelectorAll('[data-back]').forEach(b => b.onclick = () => back(fb)); }
+/* 頂部列：固定不捲走。back：true 一定有、'auto' 從別頁點進來才有；home：右上回首頁 */
+function head(title, o={}){
+  const st = history.state || {};
+  const showBack = o.back === true || (o.back === 'auto' && curIdx > 0 && !st.tab);
+  const left = showBack ? `<button class="icon-btn" data-back aria-label="${o.x?'離開':'返回上一頁'}">${ic(o.x?'close':'back')}</button>` : (o.big ? '' : '<span class="icon-btn ghost"></span>');
+  const right = (o.right || '') + (o.home ? `<a class="icon-btn" href="#/home" aria-label="回首頁">${ic('home')}</a>` : '');
+  return `<header class="bar sticky ${o.big?'big':''}">${left}<h1 class="bar-t" data-top>${title}</h1><div class="bar-r">${right || (o.big ? '' : '<span class="icon-btn ghost"></span>')}</div></header>`;
+}
+const topbar = (title, opts={}) => head(title, { back:true, ...opts });
+function bindBack(el, fb){
+  el.querySelectorAll('[data-back]').forEach(b => b.onclick = () => back(fb));
+  el.querySelectorAll('[data-top]').forEach(b => b.onclick = toTop);
+}
+
+/* ===== 懸浮按鈕：回到頂部、LINE 問顧問 ===== */
+let onScroll = null;
+const fabs = (() => {
+  const box = $h(`<div class="fabs"><span class="fab-tip" hidden>有問題問顧問</span>
+    <button class="fab top" aria-label="回到頂部" hidden><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V6M6 11l6-6 6 6"/></svg></button>
+    <button class="fab line" aria-label="用 LINE 問顧問" hidden><svg viewBox="0 0 40 40" aria-hidden="true"><path d="M20 7C11.7 7 5 12.4 5 19c0 5.9 5.3 10.9 12.5 11.8.5.1 1.2.3 1.3.8.1.4.1 1.1 0 1.5l-.2 1.3c-.1.4-.3 1.5 1.3.8s8.7-5.1 11.8-8.8C33.9 24 35 21.6 35 19 35 12.4 28.3 7 20 7z" fill="#fff"/><text x="20" y="22.6" text-anchor="middle" font-size="7.6" font-weight="800" fill="#06C755" font-family="Arial,sans-serif">LINE</text></svg></button></div>`);
+  document.body.append(box);
+  const o = { box, top:box.querySelector('.top'), line:box.querySelector('.line'), tip:box.querySelector('.fab-tip'), page:'', noTop:false };
+  o.top.onclick = toTop; o.line.onclick = lineSheet;
+  return o;
+})();
+function toTop(){ scrollTo({ top:0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); }
+let lastY = 0;
+function scrolled(){
+  fabs.top.hidden = fabs.noTop || scrollY < innerHeight * 1.5;
+  // 往下滑時 LINE 按鈕先讓開，往上滑或停在頂部再出現，避免擋住清單右側的「比較」與愛心
+  const dy = scrollY - lastY; if (Math.abs(dy) > 6) { fabs.line.classList.toggle('away', dy > 0 && scrollY > 120); lastY = scrollY; }
+  if (scrollY < 120) fabs.line.classList.remove('away');
+  document.body.classList.toggle('scrolled', scrollY > 8);
+  if (onScroll) onScroll(scrollY);
+}
+addEventListener('scroll', scrolled, { passive:true });
+function showFabTip(){ if (S.fabTip) return; S.fabTip = true; save(); fabs.tip.hidden = false; setTimeout(() => fabs.tip.hidden = true, 3000); }
+function lineSheet(){
+  track('line_fab', { page:fabs.page });
+  const fav = S.favs[0] ? short(TRIPS.find(t => t.name === S.favs[0]) || {name:S.favs[0]}) : '';
+  const canCode = S.quizDone;
+  openSheet(`<h3>用 LINE 問顧問</h3>
+    ${canCode?`<button class="sheet-opt op" id="withData"><b>帶著我的資料問顧問</b><span>自動附上交接代碼${fav?`和收藏的「${esc(fav)}」`:''}，顧問不用重問</span></button>`:''}
+    <button class="sheet-opt op" id="justAsk"><b>只是想先問問</b><span>直接打開永信 LINE 官方帳號</span></button>
+    <p class="muted small center">晚上送出，隔天早上 10 點前回覆${S.demo?'・示範帳號不會真的傳出':''}</p>
+    <button class="btn2 b2" data-close>取消</button>`, (sh, close) => {
+    const w = sh.querySelector('#withData');
+    if (w) w.onclick = async () => {
+      if (S.demo) { close(); return toast('示範帳號不會真的傳出；正式版會開啟 LINE 並附上交接代碼'); }
+      if (S.consent !== 'yes') { close(); return nav('advisor'); }
+      const me = await ensureCustomer(); close(); if (!me) return toast('目前連不上資料庫，先直接開 LINE');
+      openLine(lineMsg(`我的交接代碼是 ${me.code}${fav?`，想了解「${fav}」`:''}`));
+    };
+    sh.querySelector('#justAsk').onclick = () => { close(); if (S.demo) return toast('示範帳號不會真的傳出；正式版會開啟永信 LINE 官方帳號'); openLine(lineMsg('你好，我想詢問歐洲行程')); };
+  });
+}
 
 /* ===== Supabase ===== */
 async function ensureAuth(){
@@ -284,13 +358,14 @@ function openSheet(html, bind){
 }
 
 /* ===== 00 首頁（尚未測驗） ===== */
+const resumeAt = () => { if (!S.consent || S.quizDone) return 0; const n = QUESTIONS.findIndex(q => state.ans[q.id] === undefined); return n > 0 ? n : 0; };
 function homeNewView(){
   const pop = POPULAR.map(q => ({t:TRIPS[tripId(q)]}));
   const el = $h(`<section class="pad">
     <div class="hello"><p>歡迎來到</p><h1>歐洲旅人護照</h1></div>
-    <a class="quiz-box b3" href="#/welcome">
+    <a class="quiz-box b3" href="#/${resumeAt()?'quiz/'+resumeAt():'welcome'}">
       <div class="qb-h"><span class="qmark">?</span><div><b>你是哪一種歐洲旅人？</b><span>12 題・約 1 分鐘・不用登入</span></div></div>
-      <span class="btn-fake">開始測驗，看我的 3 團推薦</span>
+      <span class="btn-fake">${resumeAt()?`繼續測驗（第 ${resumeAt()+1} 題）`:'開始測驗，看我的 3 團推薦'}</span>
       <small>完成後這裡會換成你的角色卡、點數與推薦</small></a>
     <div class="sec-h"><h2>大家最常看的行程</h2><a href="#/explore">全部</a></div>
     <div class="tiles">${pop.map(tripTile).join('')}</div>
@@ -337,15 +412,19 @@ function enterDemo(){
 function quizView(){
   const i = Math.min(+route()[1] || 0, QUESTIONS.length-1), q = QUESTIONS[i], multi = !!q.multi, cur = state.ans[q.id];
   const el = $h(`<section class="quiz">
-    <header class="bar"><button class="icon-btn" id="qx" aria-label="離開測驗">${ic(i?'back':'close')}</button>
+    <header class="bar sticky"><button class="icon-btn" id="qx" aria-label="離開測驗">${ic('close')}</button>
       <div class="qprog"><span>${i+1} / ${QUESTIONS.length}</span><div class="prog"><i style="width:${(i+1)/QUESTIONS.length*100}%"></i></div></div><span class="icon-btn ghost"></span></header>
     <div class="vig">${QIMG[i]}</div>
     <h2 class="qtitle">${q.t}</h2>${q.sub?`<p class="qsub">${q.sub}</p>`:''}
     <div class="opts">${q.o.map((o,k)=>{const on = multi ? (cur||[]).includes(k) : cur===k;
       return `<button class="opt op" data-k="${k}" aria-pressed="${on}"><span class="k">${String.fromCharCode(65+k)}</span><span>${o[0]}</span></button>`}).join('')}</div>
     ${multi?'<button class="btn1 b1" id="done">完成，看我的旅人角色</button><p class="hint">可複選，也可以都不選</p>':'<p class="hint">點一下答案，自動進到下一題</p>'}
+    ${i?'<button class="txt prev-q" id="prevq">‹ 上一題</button>':''}
   </section>`);
-  el.querySelector('#qx').onclick = () => { if (i) { dir = 'back'; nav('quiz/'+(i-1), true); } else back('home'); };
+  el.querySelector('#qx').onclick = () => openSheet(`<h3>要離開測驗嗎？</h3><p>已作答的題目會保留，回首頁點測驗方框，可以從第 ${i+1} 題繼續。</p>
+    <button class="btn1 b1" data-close>繼續作答</button><button class="btn2 b2" id="leave">離開，回首頁</button>`,
+    (sh, close) => sh.querySelector('#leave').onclick = () => { close(); back('home'); });
+  const pq = el.querySelector('#prevq'); if (pq) pq.onclick = () => { dir = 'back'; nav('quiz/'+(i-1), true); };
   el.querySelectorAll('.opt').forEach(b => b.onclick = () => { const k = +b.dataset.k;
     if (multi) { const s = new Set(state.ans[q.id]||[]); s.has(k)?s.delete(k):s.add(k); state.ans[q.id]=[...s]; b.setAttribute('aria-pressed', s.has(k)); return; }
     state.ans[q.id] = k; el.querySelectorAll('.opt').forEach(x => x.setAttribute('aria-pressed', x === b)); save();
@@ -366,7 +445,7 @@ function resultView(){
   if (!S.quizDone) { setTimeout(() => nav('welcome', true)); return $h('<section></section>'); }
   const sh = scores(), P = PACES[state.pace], top3 = ROLE_ORDER.slice().sort((a,b)=>sh[b]-sh[a]).slice(0,3);
   const el = $h(`<section class="result pad">
-    <p class="eyebrow">你的旅人角色</p>
+    <header class="bar sticky res-bar"><span class="icon-btn ghost"></span><p class="eyebrow bar-t">你的旅人角色</p><a class="icon-btn" href="#/home" aria-label="回首頁">${ic('home')}</a></header>
     <div class="r-av pop-in">${av(P.ch,'start')}</div>
     <h1>${P.name}</h1><p class="r-alias">${P.alias}・${P.pace}</p>
     <p class="r-desc">${P.desc}</p>
@@ -415,7 +494,7 @@ function exploreView(){
   if (S.region) list = list.filter(x => x.t.region === S.region);
   const reg = S.region && REGIONS.find(r => r.id === S.region);
   const el = $h(`<section class="pad">
-    <div class="tab-h"><h1>探索</h1></div>
+    ${head('探索', {big:true, back:'auto'})}
     <div class="seg"><a aria-current="page" href="#/explore">推薦</a><a href="#/explore/map">地圖</a></div>
     <div class="fchips">${reg?`<button class="fc on" id="rg">只看${reg.full.replace(/（.*）/,'')} ✕</button>`:''}${FLT.map(([id,l]) => byId[id] ? `<button class="fc ${on.includes(id)?'on':''}" data-f="${id}">${l || byId[id].label}</button>` : '').join('')}</div>
     <p class="muted small">${S.quizDone && completion() ? '已套用你的旅人檔案・' : ''}符合 ${list.length} 團</p>
@@ -433,7 +512,7 @@ function exploreView(){
 function mapView(){
   const first = S.quizDone ? mine()[0].t.region : 'benelux';
   const el = $h(`<section class="pad">
-    <div class="tab-h"><h1>探索</h1></div>
+    ${head('探索', {big:true, back:'auto'})}
     <div class="seg"><a href="#/explore">推薦</a><a aria-current="page" href="#/explore/map">地圖</a></div>
     <div class="mapbox" id="map"></div>
     <div class="info" id="info" aria-live="polite"></div>
@@ -461,8 +540,9 @@ function tripView(){
   track('trip_view', { trip:t.name });
   const el = $h(`<section class="trip">
     <div class="trip-cover">${cover(t,'big')}
-      <button class="icon-btn float l" data-back aria-label="返回">${ic('back')}</button>
-      <button class="icon-btn float r hb heart" id="fv" aria-pressed="${fav}" aria-label="收藏">${ic('heart')}</button></div>
+    </div>
+    <header class="trip-top"><button class="icon-btn" data-back aria-label="返回上一頁">${ic('back')}</button><h1 class="bar-t" data-top>${title}</h1>
+      <button class="icon-btn hb heart" id="fv" aria-pressed="${fav}" aria-label="收藏">${ic('heart')}</button><a class="icon-btn" href="#/home" aria-label="回首頁">${ic('home')}</a></header>
     <div class="pad">
       <p class="eyebrow">${AREA_NAME[g.area]}・${g.full}</p>
       <h1>${title}</h1><p class="sub">${sub||''}</p>
@@ -480,6 +560,7 @@ function tripView(){
   </section>`);
   bindBack(el, 'explore');
   el.querySelector('#fv').onclick = e => toggleFav(t.name, e.currentTarget);
+  const bar = el.querySelector('.trip-top'); onScroll = y => bar.classList.toggle('solid', y > 100);
   el.querySelector('#cmp').onclick = () => { if (!S.quizDone) return toast('做完一分鐘測驗就能比較行程'); toggleCmp(i); if (S.cmp.includes(i) && S.cmp.length >= 2) nav('compare'); else render(); };
   el.querySelector('#ask').onclick = () => nav('advisor/' + i);
   return el;
@@ -502,7 +583,7 @@ function compareView(){
     ['當地均溫', xs.map(x => `${x.t.temp}°C`), B.hot===0 ? best(xs.map(x=>-(+x.t.temp.split('–').pop())),'max') : xs.map(()=>false)],
     ['和你合拍', xs.map(x => `${fitPct(all, x.s)}%`), best(xs.map(x=>x.s),'max')]];
   const el = $h(`<section class="pad cmp">
-    ${topbar(`比較 ${xs.length} 團`, {right: xs.length<3?'<a class="txt-btn" href="#/explore">＋ 加一團</a>':'<span class="icon-btn ghost"></span>'})}
+    ${topbar(`比較 ${xs.length} 團`, {home:true, right: xs.length<3?'<a class="txt-btn" href="#/explore">＋ 加一團</a>':''})}
     <div class="ctab" style="--n:${xs.length}">
       <div class="ch"></div>${xs.map((x,k)=>`<div class="ch"><a href="#/trip/${S.cmp[k]}">${short(x.t)}</a><button class="txt" data-rm="${S.cmp[k]}">移除</button></div>`).join('')}
       ${rows.map(([k,vals,hi]) => `<div class="ck">${k}</div>${vals.map((v,j)=>`<div class="cv ${hi[j]?'hi':''}">${v}</div>`).join('')}`).join('')}
@@ -552,7 +633,7 @@ function buddyView(){
       <p class="muted small">兩人都完成旅人檔案，同團報名第二人享折扣（示意），各得 100 點。</p>
       ${S.buddies.length>1?`<p class="muted small">另外還有 ${S.buddies.length-1} 位旅伴：${S.buddies.slice(1).map(x=>esc(x.nickname||PACES[x.role_key].short)).join('、')}</p>`:''}`; }
   const el = $h(`<section class="pad">
-    <div class="tab-h"><h1>旅伴</h1><button class="txt-btn" id="inv">＋ 邀請</button></div>
+    ${head('旅伴', {big:true, back:'auto', right:'<button class="txt-btn" id="inv">＋ 邀請</button>'})}
     ${body}</section>`);
   const invite = () => inviteSheet();
   el.querySelector('#inv').onclick = invite; const i2 = el.querySelector('#inv2'); if (i2) i2.onclick = invite;
@@ -583,7 +664,7 @@ function summaryLines(tripName){
 }
 function advisorView(){
   const ti = route()[1], t = ti != null && ti !== '' ? TRIPS[+ti] : null;
-  const el = $h(`<section class="pad adv">${topbar('找顧問')}<div id="body"><p class="muted">準備交接代碼中…</p></div></section>`);
+  const el = $h(`<section class="pad adv">${topbar('找顧問', {home:true})}<div id="body"><p class="muted">準備交接代碼中…</p></div></section>`);
   bindBack(el, t ? 'trip/' + ti : 'home');
   const body = el.querySelector('#body');
   const draw = code => {
@@ -613,7 +694,7 @@ function advisorView(){
 const KIND = {advisor:['顧問','chat'], buddy:['旅伴','buddy'], perk:['優惠與禮遇','gift'], system:['系統','star']};
 function inboxView(){
   const f = route()[1] || 'all', list = S.notes.filter(n => f === 'all' || n.kind === f || (f === 'perk' && n.kind === 'system'));
-  const el = $h(`<section class="pad">${topbar('通知', {right:'<button class="txt-btn" id="allread">全部已讀</button>'})}
+  const el = $h(`<section class="pad">${topbar('通知', {home:true, right:'<button class="txt-btn" id="allread">全部已讀</button>'})}
     <div class="fchips">${[['all','全部'],['advisor','顧問'],['buddy','旅伴'],['perk','優惠與禮遇']].map(([k,l])=>`<a class="fc ${f===k?'on':''}" href="#/inbox/${k}">${l}</a>`).join('')}</div>
     <div class="notes">${list.length ? list.map(n => `<a class="note op ${n.read?'':'unread'}" href="${n.link||'#/home'}" data-id="${n.id}">
       <span class="n-ic k-${n.kind}">${ic(KIND[n.kind][1])}</span><div><div class="n-h"><b>${esc(n.title)}</b><span>${fmtDate(n.at)}</span></div><p>${esc(n.body||'')}</p></div></a>`).join('')
@@ -633,7 +714,7 @@ function passView(){
   const P = PACES[state.view], lv = tierIdx(), trips = (S.me && S.me.trips_taken) || 0, next = PERKS[lv+1];
   const need = [2,3,5][lv] - trips;
   const el = $h(`<section class="pad">
-    <div class="tab-h"><h1>護照</h1></div>
+    ${head('護照', {big:true, back:'auto'})}
     <div class="passport b3"><div class="pp-top"><span>歐洲旅人護照・數位版</span><span class="stamp">${TIERS[lv][1]}</span></div>
       <div class="pp-id"><div class="pp-av">${av(P.ch, TIERS[lv][0])}</div><div><b>${P.name}</b><span>${P.alias}・${TIERS[lv][1]}等級</span>${S.nickname?`<span>${esc(S.nickname)}</span>`:''}</div></div>
       <div class="pp-stats"><div><b>${trips}</b><span>出團次數</span></div><a href="#/pass/points"><b>${points()}</b><span>旅人點數 ›</span></a><a href="#/me"><b>${completion()}%</b><span>檔案完成</span></a></div></div>
@@ -649,7 +730,7 @@ function passView(){
 
 /* ===== 13 點數明細 ===== */
 function pointsView(){
-  const el = $h(`<section class="pad">${topbar('點數明細')}
+  const el = $h(`<section class="pad">${topbar('點數明細', {home:true})}
     <div class="pts-card b3"><span>目前點數</span><b>${points()} 點</b><small>報名時可折抵 ${points()} 元・2027/12/31 前有效</small></div>
     ${pending()?`<p class="pend">待入帳 ${pending()} 點：出團回國後入帳</p>`:''}
     <h2 class="h2">紀錄</h2>
@@ -666,7 +747,7 @@ function pointsView(){
 function meView(){
   const c = completion();
   const el = $h(`<section class="pad">
-    <div class="tab-h"><h1>我的</h1></div>
+    ${head('我的', {big:true, back:'auto'})}
     ${S.demo?`<div class="demo-box"><b>示範帳號：${DEMO.name}</b><span>所有操作只存在這支手機，不會寫入資料庫。</span><button class="btn2 b2" id="exitDemo">離開示範帳號</button></div>`:''}
     <div class="box"><div class="sec-h"><h2>旅人檔案</h2><span class="muted small">${c}%・已得 ${CARDS.filter(doneCard).reduce((s,x)=>s+x.pts,0)} 點</span></div>
       <div class="prog"><i style="width:${c}%"></i></div>
@@ -702,7 +783,7 @@ function cardQView(k, i){
   i = Math.min(Math.max(i, 0), card.qs.length - 1);
   const q = card.qs[i], v = S.prof[card.k] = S.prof[card.k] || {}, cur = v[q.id], last = i === card.qs.length - 1;
   const el = $h(`<section class="pad cardq">
-    <header class="bar"><button class="icon-btn" data-back aria-label="返回">${ic('back')}</button>
+    <header class="bar sticky"><button class="icon-btn" data-back aria-label="返回我的">${ic('back')}</button>
       <div class="qprog"><span>${card.t}・${i+1} / ${card.qs.length}</span><div class="prog"><i style="width:${(i+1)/card.qs.length*100}%"></i></div></div>
       <span class="pts-badge ${doneCard(card)?'got':''}">${doneCard(card)?'已完成':'+'+card.pts+' 點'}</span></header>
     <h2 class="qtitle">${q.t}</h2>
@@ -730,6 +811,11 @@ function cardQView(k, i){
 }
 
 /* ===== 啟動 ===== */
-history.replaceState({i:0}, '', location.hash && location.hash.startsWith('#/') ? location.hash : '#/home');
+/* 從 QR、連結直接打開深層頁面時，先在歷史紀錄墊上層頁面，手機返回鍵會一路回到首頁，不會直接跳出 App */
+(() => { const start = location.hash.startsWith('#/') ? location.hash.slice(2) : 'home', chain = [start];
+  for (let p = parentOf(start); p; p = parentOf(p)) chain.unshift(p);
+  if (chain[0] !== 'home' && chain[0] !== '') chain.unshift('home');
+  history.replaceState({i:0}, '', '#/' + chain[0]);
+  for (let k = 1; k < chain.length; k++) history.pushState({i:++curIdx}, '', '#/' + chain[k]); })();
 render();
 loadRemote().then(() => render());
