@@ -9,7 +9,7 @@
   --bg:#EFE7D8; --page:#FBF7EF; --ink:#2B2B33; --muted:#665F53; --line:#E2D7C2;
   --cover:#F7F1E5; --cover-ink:#1E3A5C; --cover-line:#E2D6BE; --brand:#F39500; --accent:#E8A54F; --on-accent:#1E3A5C; --cta-edge:#C98A3E; --cta-glow:rgba(232,165,79,.32); --accent-soft:#FBEEDC; --pin:#1E3A5C;
   --stamp:#2F4C6E; --sea:#DCE6EE; --land:#F7F1E5; --land-off:#E8E1D3; --border:#C4B8A2; --v1:#F1D9AE; --v2:#E3A55A; --v3:#A8692C; --v-ink:#4A2E0F;
-  --east:#EBDDC3; --west:#FDE3B5; --south:#FAEFC8; --north:#D6E1EC;
+  --east:#EBDDC3; --west:#FDE3B5; --south:#FAEFC8; --north:#D6E1EC; --off-area:#CFC8C1; --sel:#2A7F7A; --sel-ink:#FFFFFF;
   --f-display:"LXGW WenKai TC","Noto Sans TC","Noto Sans CJK TC","PingFang TC","Microsoft JhengHei",serif;
   --f-body:"Noto Sans TC","Noto Sans CJK TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
   --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
@@ -18,12 +18,12 @@
   --bg:#0D1620; --page:#15212D; --ink:#E9EEF3; --muted:#9AA7B4; --line:#283543;
   --cover:#22303D; --cover-ink:#F3EEE4; --cover-line:#3A4756; --brand:#F39500; --accent:#E3A457; --on-accent:#1E2A36; --cta-edge:#9C6A2E; --cta-glow:rgba(0,0,0,.35); --accent-soft:#3A2D1C; --pin:#0D1620;
   --stamp:#9DBBDA; --sea:#0F1C29; --land:#22303E; --land-off:#1A2531; --border:#3A4A5B; --v1:#5A4628; --v2:#B8823F; --v3:#F0C27E; --v-ink:#1A1206;
-  --east:#3B3427; --west:#4A3A1E; --south:#45401F; --north:#24384C; color-scheme:dark}}
+  --east:#3B3427; --west:#4A3A1E; --south:#45401F; --north:#24384C; --off-area:#10161D; --sel:#4FB3AA; --sel-ink:#0B1A19; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0D1620; --page:#15212D; --ink:#E9EEF3; --muted:#9AA7B4; --line:#283543;
   --cover:#22303D; --cover-ink:#F3EEE4; --cover-line:#3A4756; --brand:#F39500; --accent:#E3A457; --on-accent:#1E2A36; --cta-edge:#9C6A2E; --cta-glow:rgba(0,0,0,.35); --accent-soft:#3A2D1C; --pin:#0D1620;
   --stamp:#9DBBDA; --sea:#0F1C29; --land:#22303E; --land-off:#1A2531; --border:#3A4A5B; --v1:#5A4628; --v2:#B8823F; --v3:#F0C27E; --v-ink:#1A1206;
-  --east:#3B3427; --west:#4A3A1E; --south:#45401F; --north:#24384C; color-scheme:dark}
+  --east:#3B3427; --west:#4A3A1E; --south:#45401F; --north:#24384C; --off-area:#10161D; --sel:#4FB3AA; --sel-ink:#0B1A19; color-scheme:dark}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.6;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
@@ -168,10 +168,11 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline
 .mapbox{border-radius:12px;overflow:hidden;border:1px solid var(--line);background:var(--sea);position:relative}
 .mapbox svg{display:block;width:100%;height:auto}
 .mapbox path{fill:var(--land-off);stroke:var(--border);stroke-width:.6;vector-effect:non-scaling-stroke;transition:fill .15s}
+.mapbox svg.explore path:not(.on){fill:var(--off-area)}
 .mapbox path.on{cursor:pointer}
 .mapbox path.north{fill:var(--north)} .mapbox path.west{fill:var(--west)} .mapbox path.east{fill:var(--east)} .mapbox path.south{fill:var(--south)}
-.mapbox path.in{fill:var(--accent);stroke:var(--on-accent);stroke-width:1}
-.mapbox path.pick{fill:var(--accent);stroke:var(--stamp);stroke-width:2.2}
+.mapbox path.in{fill:var(--sel);stroke:var(--sel-ink);stroke-width:1}
+.mapbox path.pick{fill:var(--sel);stroke:var(--pin);stroke-width:2.2}
 .mapbox path.on:hover{stroke:var(--stamp);stroke-width:1.4}
 .mapbox path:focus{outline:none}
 .mapbox path:focus-visible{stroke:var(--stamp);stroke-width:2.6}
@@ -181,13 +182,13 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline
 .mapbox .hint{position:absolute;left:10px;bottom:8px;font-size:11.5px;color:var(--muted);background:color-mix(in srgb,var(--page) 85%,transparent);padding:2px 8px;border-radius:6px}
 .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px;border:1px solid var(--border)}
-.info{border-left:4px solid var(--accent);background:var(--accent-soft);border-radius:0 10px 10px 0;padding:10px 12px;font-size:13.5px;min-height:46px;display:flex;flex-direction:column;gap:6px}
+.info{border-left:4px solid var(--sel);background:var(--accent-soft);border-radius:0 10px 10px 0;padding:10px 12px;font-size:13.5px;min-height:46px;display:flex;flex-direction:column;gap:6px}
 .info b{font-size:15px}
 .cats{display:flex;flex-direction:column;gap:8px}
 .cats .grp{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .cats .grp span{font-size:12px;color:var(--muted);width:32px}
 .cat{border:1px solid var(--line);background:var(--page);border-radius:999px;padding:4px 10px;font-size:12.5px}
-.cat[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:700}
+.cat[aria-pressed="true"]{background:var(--sel);border-color:var(--sel);color:var(--sel-ink);font-weight:700}
 .cat.rec::after{content:" ★";color:var(--accent)}
 .cat.rec[aria-pressed="true"]::after{color:var(--on-accent)}
 .rlist{display:flex;flex-direction:column;gap:4px}
@@ -549,9 +550,9 @@ function result(){const sh=scores();const p=state.view;const P=PACES[p];const re
    </div>
    <div class="page">
      <div class="section-h"><h3>歐洲探索地圖</h3><span class="tag">永信官網 23 個歐洲分類</span></div>
-     <p class="note">橘色是推薦你的第一站。點地圖上的國家，或點下方分類，看看那裡有哪些行程。</p>
+     <p class="note">青綠色是推薦你的第一站。點地圖上的國家，或點下方分類，看看那裡有哪些行程。</p>
      <div class="mapbox" id="map"></div>
-     <div class="legend"><span><i style="background:var(--north)"></i>北歐</span><span><i style="background:var(--west)"></i>西歐</span><span><i style="background:var(--east)"></i>東歐</span><span><i style="background:var(--south)"></i>南歐</span><span><i style="background:var(--accent)"></i>目前選取</span></div>
+     <div class="legend"><span><i style="background:var(--north)"></i>北歐</span><span><i style="background:var(--west)"></i>西歐</span><span><i style="background:var(--east)"></i>東歐</span><span><i style="background:var(--south)"></i>南歐</span><span><i style="background:var(--sel)"></i>目前選取</span><span><i style="background:var(--off-area)"></i>非永信歐洲線</span></div>
      <div class="info" id="info" aria-live="polite"></div>
      <div class="cats" id="cats"></div>
    </div>
@@ -596,7 +597,7 @@ function mapUI(el,first){
   const box=el.querySelector('#map'),info=el.querySelector('#info'),cats=el.querySelector('#cats');
   if(!state.mapSel)state.mapSel={type:'region',id:first};
   const ns='http://www.w3.org/2000/svg';
-  const svg=document.createElementNS(ns,'svg');svg.setAttribute('viewBox','0 0 800 760');svg.setAttribute('role','img');svg.setAttribute('aria-label','歐洲地圖');
+  const svg=document.createElementNS(ns,'svg');svg.setAttribute('viewBox','0 0 800 760');svg.setAttribute('role','img');svg.setAttribute('aria-label','歐洲地圖');svg.classList.add('explore');
   const paths={};
   GEO.forEach(g=>{const p=document.createElementNS(ns,'path');p.setAttribute('d',g.d);
     const home=HOME[g.c];if(home){p.classList.add(home,'on');p.setAttribute('tabindex','0');p.setAttribute('aria-label',CNAME[g.c]);
