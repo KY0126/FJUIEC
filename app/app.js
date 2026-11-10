@@ -58,7 +58,7 @@ function demoLedger(){ return [
 const LS = 'ys_app_v2';
 const S = Object.assign({consent:null, demo:false, ans:{}, pace:null, view:null, prof:{}, favs:[], cmp:[], quizDone:false,
   notes:[], ledger:[], buddies:[], nickname:'', lineSync:true, me:null, inv:null, flt:null, region:null,
-  inq:[], avatar:null, region_tw:null, prefs:{}, fltDefault:null},
+  inq:[], avatar:null, region_tw:null, prefs:{}, fltDefault:null, photo:null, photoOn:false},
   (()=>{try{return JSON.parse(localStorage.getItem(LS)||'{}')}catch(e){return {}}})());
 S.me = null; state.ans = S.ans || {}; if (S.pace) { state.pace = S.pace; state.view = S.view || S.pace; }
 const invParam = new URLSearchParams(location.search).get('inv'); if (invParam) { S.inv = invParam.toUpperCase().slice(0,6); }
@@ -128,7 +128,7 @@ function render(){
   const views = {home:()=>S.quizDone?homeView():homeNewView(), welcome:welcomeView, quiz:quizView, result:resultView,
     explore:()=>r[1]==='map'?mapView():exploreView(), trip:tripView, compare:compareView, buddy:buddyView, pass:()=>r[1]==='points'?pointsView():passView(),
     me:()=>({card:()=>cardQView(r[2], +r[3]||0), edit:editView, settings:settingsView, favs:favsView, inquiries:inquiriesView, legal:()=>legalView(r[2])}[r[1]] || meView)(), inbox:inboxView, advisor:advisorView};
-  onScroll = null;
+  onScroll = null; clearInterval(flipTimer);
   const v = (views[r[0]] || views.home)(), goingBack = dir === 'back';
   v.classList.add('screen', goingBack ? 'in-back' : 'in-fwd'); dir = 'fwd';
   v.querySelectorAll('[data-back]').forEach(b => { if (!b.onclick) b.onclick = () => back(); });
@@ -169,7 +169,7 @@ function bindBack(el, fb){
 }
 
 /* ===== 懸浮按鈕：回到頂部、LINE 問顧問 ===== */
-let onScroll = null;
+let onScroll = null, flipTimer = null;
 const fabs = (() => {
   const box = $h(`<div class="fabs"><span class="fab-tip" hidden>有問題問顧問</span>
     <button class="fab top" aria-label="回到頂部" hidden><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V6M6 11l6-6 6 6"/></svg></button>
@@ -413,7 +413,7 @@ function welcomeView(){
 function enterDemo(){
   Object.assign(S, { consent:'demo', demo:true, prof:JSON.parse(JSON.stringify(DEMO.prof)), favs:[...DEMO.favs], cmp:[], quizDone:true,
     notes:demoNotes(), ledger:demoLedger(), buddies:[{...DEMO.buddy, buddy_id:'demo', seen:false}], nickname:DEMO.name, flt:null, region:null,
-    avatar:'cat', region_tw:'北部', prefs:{}, fltDefault:null, inq:[{trip:TRIPS[tripId('巴黎精品與甜點')].name, status:'replied', at:daysAgo(.3)}] });
+    avatar:'cat', photo:'img/lin.jpg', photoOn:true, region_tw:'北部', prefs:{}, fltDefault:null, inq:[{trip:TRIPS[tripId('巴黎精品與甜點')].name, status:'replied', at:daysAgo(.3)}] });
   state.ans = JSON.parse(JSON.stringify(DEMO.ans)); state.pace = topPace(scores()); state.view = state.pace; save();
   toast(`已進入示範帳號：${DEMO.name}`); nav('home', true);
 }
@@ -781,12 +781,13 @@ function meView(){
   }
   const P = PACES[avatarKey()], T = TIERS[tierIdx()], c = completion(), bm = birthMonth();
   const inqN = (S.inq || []).length, favN = S.favs.length;
-  const tag = {demo:'<i class="mtag">示範帳號・只存在這支手機</i>', trial:'<i class="mtag warn">試玩中・尚未成為會員</i>', member:''}[ms];
+  const flip = S.photo && S.photoOn;
+  const tag = {demo:`<i class="mtag">示範帳號${flip?'・示意照片非本人':'・只存在這支手機'}</i>`, trial:'<i class="mtag warn">試玩中・尚未成為會員</i>', member:''}[ms];
   const code = S.demo ? 'YT0126' : ms === 'member' ? (S.me && S.me.code || '…') : null;
   const el = $h(`<section class="pad">
     ${head('會員', {big:true, back:'auto', right:gear})}
     <div class="mcard">
-      <div class="mc-top"><div class="mc-av">${av(P.ch, T[0])}</div>
+      <div class="mc-top">${flip?`<button class="mc-av flip" aria-label="頭像：照片與${P.short}頭像輪流顯示，點一下翻面"><span class="flip-in"><span class="face front"><img src="${S.photo}" alt="${esc(S.nickname)}（示意照片）"></span><span class="face back">${av(P.ch, T[0])}</span></span></button>`:`<div class="mc-av">${av(P.ch, T[0])}</div>`}
         <div class="mc-id"><b>${esc(S.nickname || '旅人')}</b><span>${T[1]}會員・${PACES[state.view].short}</span>${tag}</div>
         <a class="icon-btn" href="#/me/edit" aria-label="編輯個人資料">${ic('pen')}</a></div>
       <div class="mc-rows">
@@ -810,6 +811,9 @@ function meView(){
       <a class="op" href="#/inbox">${ic('bell')}<span>通知</span>${unread()?`<em>${unread()} 則未讀</em>`:''}${ic('chev','end')}</a>
       <a class="op" href="#/me/settings">${ic('gear')}<span>設定與隱私</span>${ic('chev','end')}</a></div>
   </section>`);
+  const fl = el.querySelector('.mc-av.flip');
+  if (fl) { const turn = () => fl.classList.toggle('flipped'); fl.onclick = () => { turn(); clearInterval(flipTimer); flipTimer = setInterval(turn, 4000); };
+    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) flipTimer = setInterval(turn, 4000); }
   const cp = el.querySelector('#copy'); if (cp) cp.onclick = async () => { try { await navigator.clipboard.writeText(el.querySelector('#code').textContent); toast('已複製交接代碼'); } catch(e) { toast('請長按代碼複製'); } };
   el.querySelectorAll('#optin,#optin2').forEach(b => b.onclick = optIn);
   if (ms === 'member' && !(S.me && S.me.code)) ensureCustomer().then(() => { const p = el.querySelector('#code'); if (p && S.me) p.textContent = S.me.code; });
@@ -822,6 +826,7 @@ function editView(){
   let av0 = avatarKey(), reg = S.region_tw || null, b0 = bm;
   const el = $h(`<section class="pad">${topbar('編輯個人資料')}
     <label class="fld"><span>暱稱</span><input id="nn" maxlength="12" value="${esc(S.nickname)}" placeholder="例如：雅婷"><small>旅伴和顧問會看到；不用填真實姓名</small></label>
+    ${S.photo?`<label class="sw"><span>照片與角色頭像輪流顯示<small>每 4 秒翻面一次；關掉就只顯示下面選的角色頭像</small></span><input type="checkbox" id="pon" ${S.photoOn?'checked':''}><i></i></label>`:''}
     <div class="fld"><span>頭像</span><div class="avs">${ROLE_ORDER.map(k=>`<button class="avo op" data-av="${k}" aria-pressed="${k===av0}" aria-label="${PACES[k].short}">${av(PACES[k].ch, T[0])}<i>${PACES[k].short}</i></button>`).join('')}</div>
       <small>只能選角色頭像，不上傳照片；材質會跟著護照等級（目前：${T[1]}）變精緻</small></div>
     <label class="fld"><span>生日月份</span><select id="bm"><option value="">未填</option>${MONTHS.map((m,i)=>`<option value="${i}" ${b0===i?'selected':''}>${m}</option>`).join('')}</select>
@@ -836,6 +841,7 @@ function editView(){
   el.querySelectorAll('[data-rg]').forEach(b => b.onclick = () => { reg = reg === b.dataset.rg ? null : b.dataset.rg; el.querySelectorAll('[data-rg]').forEach(x => x.classList.toggle('on', x.dataset.rg === reg)); });
   el.querySelector('#save').onclick = async () => {
     S.nickname = el.querySelector('#nn').value.trim(); S.avatar = av0; S.region_tw = reg;
+    const pon = el.querySelector('#pon'); if (pon) S.photoOn = pon.checked;
     const v = el.querySelector('#bm').value, e = S.prof.card_e = S.prof.card_e || {};
     if (v === '') delete e.birthMonth; else e.birthMonth = +v;
     save();

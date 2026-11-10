@@ -413,3 +413,11 @@ div.srow{cursor:default}
 /* ---- 條款 ---- */
 .legal .lg-sec{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:6px}
 .legal h3{font-size:15px;color:var(--orange-ink)}.legal .lg-sec p{font-size:14px;line-height:1.75}
+/* ---- 會員頭像：照片與角色頭像翻面輪播 ---- */
+.mc-av.flip{padding:0;cursor:pointer;perspective:400px;background:none;overflow:visible;font:inherit}
+.flip-in{position:relative;display:block;width:100%;height:100%;transition:transform .7s cubic-bezier(.4,.2,.2,1);transform-style:preserve-3d}
+.mc-av.flip.flipped .flip-in{transform:rotateY(180deg)}
+.face{position:absolute;inset:0;border-radius:50%;overflow:hidden;backface-visibility:hidden;-webkit-backface-visibility:hidden;background:var(--cream);display:block}
+.face img,.face svg{width:100%;height:100%;object-fit:cover;display:block}
+.face.back{transform:rotateY(180deg)}
+@media (prefers-reduced-motion:reduce){.flip-in{transition:none}}
