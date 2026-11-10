@@ -26,39 +26,40 @@ def reed(f,d,amp=1,a=.02,r=.06,musette=True):
     return amp*y*env(n,a,r)
 def add(buf,s,t0):
     i=int(t0*SR); j=min(len(buf),i+len(s)); buf[i:j]+=s[:j-i]
-# ---------- accordion ----------
-acc=z(); bass=z()
-CH={'C':['C4','E4','G4'],'G7':['B3','F4','G4'],'G':['B3','D4','G4'],'F':['C4','F4','A4']}
-RT={'C':('C3','G2'),'G7':('G2','D3'),'G':('G2','D3'),'F':('F2','C3')}
-# pickup: swell G chord
-s=sum(reed(hz(N[n]),.22,.5,a=.18,r=.03) for n in CH['G']); add(acc,s,0.0)
-seq=[(0.2,'C'),(0.6,'C'),(1.0,'C'),(1.4,'G7'),(1.8,'C'),(2.2,'C'),(2.6,'G')]
-for k,(t0,c) in enumerate(seq):
-    root=RT[c][k%2] if c!='G' else 'G2'
-    add(bass,reed(hz(N[root]),.16,.9,a=.006,r=.05,musette=False),t0)
-    if t0<2.6:
-        st=sum(reed(hz(N[n]),.11,.42,a=.006,r=.04) for n in CH[c]); add(acc,st,t0+.2)
-# sustained section 2.8–4.6: legato chords, soft
-for t0,d,c in [(2.8,.2,'G'),(3.0,.4,'C'),(3.4,.2,'F')]:
-    add(acc,sum(reed(hz(N[n]),d+.03,.30,a=.03,r=.03) for n in CH[c]),t0)
-    add(bass,reed(hz(N[RT[c][0]]),d+.03,.45,a=.03,r=.03,musette=False),t0)
-# final chord with bellows shake
-n=int(1.0*SR); t=np.arange(n)/SR
-fin=sum(reed(hz(N[x]),1.0,.34,a=.04,r=.55) for x in ['C4','E4','G4','C5'])+reed(hz(N['C3']),1.0,.5,a=.04,r=.55,musette=False)
-shake=1-.35*(0.5+0.5*np.sin(2*np.pi*7*t))*np.clip((t-.15)/.2,0,1)
-add(acc,fin*shake,3.6)
-acc=lp(acc,4500); bass=lp(bass,1800)
-# bellows breath at start
+# ---------- 新版：F 大調、男聲、永信 旅遊、全體俐落收 ----------
+N.update({'F3':53,'A3':57,'C4':60,'D4':62,'F4':65,'A4':69,'C5':72,'Bb3':58,'Bb2':46,'E3':52,'G3':55,'C3':48,'F2':41,'C2':36,'E4':64,'G4':67})
+acc=z(); bass=z(); perc=z()
+CH={'F':['A3','C4','F4'],'C7':['Bb3','C4','E4'],'C':['G3','C4','E4'],'Bb':['Bb3','D4','F4']}
+RT={'F':('F2','C3'),'C7':('C3','G3'),'C':('C3','G3'),'Bb':('Bb2','F3')}
+CUT=3.8
+# pickup：手風琴拉開風箱（C 和弦漸強）
+add(acc,sum(reed(hz(N[n]),.22,.5,a=.18,r=.03) for n in CH['C']),0.0)
 br=bp(rng.standard_normal(int(.25*SR)),300,2500)*np.linspace(0,1,int(.25*SR))**2*.25; add(acc,br,0)
-# ---------- swiss cowbell (one hit on 咿) ----------
-def cowbell(f0=620):
-    n=int(1.2*SR); t=np.arange(n)/SR; y=np.zeros(n)
-    for r,a,dc in [(1,1,5),(1.51,.7,7),(2.08,.5,9),(2.73,.35,12),(3.62,.2,16),(4.4,.12,20)]:
-        y+=a*np.sin(2*np.pi*f0*r*t+rng.random()*6)*np.exp(-dc*t)
-    y+=bp(rng.standard_normal(n),1500,7000)*np.exp(-90*t)*.6
-    return y
-bell=z(); add(bell,cowbell()*.55,2.2)
-# ---------- pen: one scratch per stroke, timing shared with the video (strokes.json) ----------
+# 標語：波卡「蹦恰」 0.2–2.6
+seq=[(0.2,'F'),(0.6,'F'),(1.0,'F'),(1.4,'C7'),(1.8,'C7'),(2.2,'F')]
+for k,(t0,c) in enumerate(seq):
+    add(bass,reed(hz(N[RT[c][k%2]]),.16,.9,a=.006,r=.05,musette=False),t0)
+    add(acc,sum(reed(hz(N[n]),.11,.42,a=.006,r=.04) for n in CH[c]),t0+.2)
+# 永信 旅遊：手風琴跟著人聲的節奏重音（不蓋過人聲）
+for t0,d,c in [(2.6,.18,'C'),(2.8,.28,'F'),(3.2,.18,'Bb')]:
+    add(acc,sum(reed(hz(N[n]),d,.30,a=.01,r=.03) for n in CH[c]),t0)
+    add(bass,reed(hz(N[RT[c][0]]),d,.55,a=.01,r=.03,musette=False),t0)
+# 遊：全體一起重拍，3.8 秒同時收（指揮收音）
+d=CUT-3.4
+hit=sum(reed(hz(N[x]),d,.42,a=.005,r=.012) for x in ['A3','C4','F4','A4'])+reed(hz(N['F2']),d,.9,a=.005,r=.012,musette=False)
+add(acc,hit,3.4)
+n=int(.25*SR); t=np.arange(n)/SR
+kick=np.sin(2*np.pi*(55+80*np.exp(-30*t))*t)*np.exp(-14*t)
+add(perc,kick*.9,3.4)
+cut_n=int(.012*SR); sn=bp(rng.standard_normal(cut_n*6),900,6000)*np.exp(-np.arange(cut_n*6)/SR*220)  # 收音那一下的小擦音
+add(perc,sn*.35,CUT-0.004)
+acc=lp(acc,4500); bass=lp(bass,1800)
+# 空間尾巴：極短、很小聲，聽起來是在房間裡收的，不是剪掉
+def tail(x,t0,dur=.22,lvl=.12):
+    seg=x[int((t0-.08)*SR):int(t0*SR)].copy(); n=int(dur*SR)
+    ir=rng.standard_normal(n)*np.exp(-np.arange(n)/SR*28); y=np.convolve(seg,ir)[:len(seg)+n]
+    return lp(y,3000)/np.max(np.abs(y))*np.max(np.abs(seg))*lvl
+# ---------- 寫字聲：每一筆一聲，時間跟影片同一份 strokes.json ----------
 import json
 pen=z()
 for st in json.load(open('strokes.json')):
@@ -66,46 +67,21 @@ for st in json.load(open('strokes.json')):
     nz=bp(rng.standard_normal(n+400),1800,6500)[:n]
     grain=0.6+0.4*np.abs(np.sin(2*np.pi*(30+rng.random()*25)*t+rng.random()*6))
     e=env(n,.004,min(.012,st['d']*.4))*grain*(0.7+0.3*min(1,st['len']/600))
-    lvl=1.0 if st['char']==0 else 0.25   # 開唱前最大聲，之後壓 12 dB
+    lvl=1.0 if st['char']==0 else 0.25
     add(pen,nz*e*lvl*.5,st['t'])
-    tk=int(.006*SR); add(pen,bp(rng.standard_normal(tk+200),2500,8000)[:tk]*np.exp(-np.arange(tk)/SR*900)*lvl*.6,st['t'])  # 下筆的「嗒」
-# ---------- guide melody: whistle ----------
-MEL=[(0.2,.2,'A4'),(0.4,.2,'G4'),(0.6,.2,'G4'),(0.8,.2,'E4'),(1.0,.2,'G4'),(1.2,.2,'G4'),(1.4,.2,'E4'),(1.6,.2,'D4'),(1.8,.2,'G4'),(2.0,.2,'C5'),
-     (2.2,.2,'E5'),(2.4,.4,'C5'),(2.8,.2,'G4'),(3.0,.4,'C5'),(3.4,.2,'A4'),(3.6,1.0,'SLIDE')]
-def whistle(f_arr,amp=1,a=.015,r=.04):
-    n=len(f_arr); t=np.arange(n)/SR
-    vib=1+.006*np.sin(2*np.pi*5.5*t)*np.clip(t/.15,0,1)
-    ph=2*np.pi*np.cumsum(f_arr*vib)/SR
-    y=np.sin(ph)+.12*np.sin(2*ph)+bp(rng.standard_normal(n),f_arr.mean()*.8,f_arr.mean()*1.3)*.05
-    return amp*y*env(n,a,r)
-mel=z()
-for t0,d,nn in MEL:
-    n=int(d*SR)
-    if nn=='SLIDE':
-        f=np.full(n,hz(N['C5'])); k=int(.12*SR); f[:k]=np.linspace(hz(N['A4']),hz(N['C5']),k)
-        y=whistle(f,1,.015,.5)
-    else:
-        f=np.full(n,hz(N[nn]))
-        if nn=='E5': f[:int(.03*SR)]=np.linspace(hz(N['C5']),hz(N['E5']),int(.03*SR))  # 翻嗓
-        y=whistle(f,1,.012,.03)
-    add(mel,y*(.75 if t0 in (2.2,2.4) else 1.0),t0)   # 咿呦比品牌名小
+    tk=int(.006*SR); add(pen,bp(rng.standard_normal(tk+200),2500,8000)[:tk]*np.exp(-np.arange(tk)/SR*900)*lvl*.6,st['t'])
 def norm(x,p): return x/np.max(np.abs(x))*p
-inst=acc*0.55+bass*0.45+bell*0.35+pen*0.5
-# 品牌名那段讓伴奏再退一點
-g=np.ones(len(inst)); t=np.arange(len(inst))/SR; g[(t>=2.8)]=0.8
-inst*=g
-def save(name,x,count_in=False):
-    if count_in:
-        cl=z(1.6)
-        for k in range(4):
-            n=int(.05*SR); tt=np.arange(n)/SR; add(cl,np.sin(2*np.pi*(1500 if k==0 else 1000)*tt)*np.exp(-60*tt)*.6,k*0.4)
-        x=np.concatenate([cl,x])
-    x=norm(x,.89); st=np.stack([x,x],1)
-    w=wave.open(name,'wb'); w.setnchannels(2); w.setsampwidth(2); w.setframerate(SR); w.writeframes((st*32767).astype('<i2').tobytes()); w.close()
+inst=acc*0.55+bass*0.45+perc*0.5+pen*0.5
 from scipy.signal import resample_poly
 import soundfile as sf
-vx,vsr=sf.read('vox/vocal_22k.wav'); vx=resample_poly(vx,SR,vsr)[:len(inst)]; vx=np.pad(vx,(0,len(inst)-len(vx)))
+vx,vsr=sf.read('vox/vocal_m.wav'); vx=resample_poly(vx,SR,vsr)[:len(inst)]; vx=np.pad(vx,(0,len(inst)-len(vx)))
 vx=vx/np.sqrt(np.mean(vx**2))*np.sqrt(np.mean(inst**2))*2.6
-save('jingle_伴奏.wav',inst)
-save('jingle_完整版.wav',inst*0.85+vx)
+def finish(x):
+    c=int(CUT*SR); g=np.ones(len(x)); r=int(.012*SR); g[c:c+r]=np.linspace(1,0,r); g[c+r:]=0
+    y=x*g; tl=tail(x,CUT); y[c:c+len(tl)]+=tl[:len(y)-c]; return y
+def save(name,x):
+    x=norm(x,.89); st=np.stack([x,x],1)
+    w=wave.open(name,'wb'); w.setnchannels(2); w.setsampwidth(2); w.setframerate(SR); w.writeframes((st*32767).astype('<i2').tobytes()); w.close()
+save('jingle_伴奏.wav',finish(inst))
+save('jingle_完整版.wav',finish(inst*0.85+vx))
 print('ok')

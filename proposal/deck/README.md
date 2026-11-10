@@ -14,6 +14,6 @@ npm i pptxgenjs            # 需要 /mnt/skills/public/pptx/scripts/apply_theme.
 node build_deck.js         # 產生 deck.pptx
 soffice --headless --convert-to pdf deck.pptx && pdftoppm -r 60 -png deck.pdf s   # 預覽
 ```
-開場影片配上品牌 Jingle（AI 合成歌聲、手風琴、約德爾「咿呦」、照筆順的寫字聲，詳見 `jingle/README.md`）。開場／結尾影片：`img/open_p1.mp4`（約 4.6 秒，手寫標語→底線→永信 Logo→淡入封面）、`img/open_p13.mp4`（約 5 秒，p.13 淡出後寫出標語與 Logo）。兩段影片各自是**獨立一頁**：第 1 張是開場影片、第 15 張是結尾影片，內容頁仍是 1–13 頁；時間不夠時直接跳過影片頁。預覽圖 `img/cover_open.png`、`img/cover_p13.png`；改了封面或 p.13 要重新產生截圖與影片（`NO_VIDEO=1 node build_deck.js` 輸出沒有影片頁的版本來截圖）。主色 #F59312。
+開場影片配上品牌 Jingle（AI 合成男聲、手風琴、照筆順的寫字聲、「永信・旅遊」全體收音，詳見 `jingle/README.md`）。開場／結尾影片：`img/open_p1.mp4`（約 4.6 秒，手寫標語→底線→永信 Logo→淡入封面）、`img/open_p13.mp4`（約 5 秒，p.13 淡出後寫出標語與 Logo）。兩段影片各自是**獨立一頁**：第 1 張是開場影片、第 15 張是結尾影片，內容頁仍是 1–13 頁；時間不夠時直接跳過影片頁。預覽圖 `img/cover_open.png`、`img/cover_p13.png`；改了封面或 p.13 要重新產生截圖與影片（`NO_VIDEO=1 node build_deck.js` 輸出沒有影片頁的版本來截圖）。主色 #F59312。
 
 規則：只有 p.3 放 QR 與可點擊網址（ky0126.github.io/FJUIEC/find-my-europe）；所有內容用「林雅婷」，不出現「林小美」。
