@@ -108,6 +108,10 @@ const ic = (k, cls='') => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidde
 const route = () => (location.hash.replace(/^#\/?/, '') || 'home').split('/');
 if ('scrollRestoration' in history) history.scrollRestoration = 'manual';   // 捲動位置由 App 自己還原
 let curIdx = 0, dir = 'fwd';
+const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+/* 行程卡展開：瀏覽器支援 View Transitions 時，卡片封面直接放大成行程頁封面；不支援就用原本的滑入 */
+let vtTrip = null;
+function withVT(fn){ if (!document.startViewTransition || reducedMotion()) return fn(); document.documentElement.classList.add('vt'); const t = document.startViewTransition(fn); t.finished.finally(() => { document.documentElement.classList.remove('vt'); document.querySelectorAll('.cover-art').forEach(c => c.style.viewTransitionName = ''); }); }
 const scrollMem = {};                       // 每一筆歷史紀錄離開時捲到哪裡，返回時還原
 function nav(p, replace, extra={}){ const h = '#/' + p;
   if (replace) history.replaceState({i:curIdx, ...extra}, '', h);
@@ -115,9 +119,13 @@ function nav(p, replace, extra={}){ const h = '#/' + p;
   render(); }
 window.addEventListener('popstate', e => { const i = e.state && typeof e.state.i === 'number' ? e.state.i : null;
   if (i === null) { scrollMem[curIdx] = scrollY; history.replaceState({i:++curIdx}, '', location.hash); } else { if (i < curIdx) dir = 'back'; curIdx = i; }
-  render(); });
+  const leavingTrip = document.querySelector('.trip-cover');
+  if (leavingTrip && vtTrip !== null && document.startViewTransition && !reducedMotion()) withVT(() => render()); else render(); });
 document.addEventListener('click', e => { const a = e.target.closest('a[href^="#/"]'); if (!a || e.defaultPrevented) return;
-  e.preventDefault(); const p = a.getAttribute('href').slice(2); if ('#/' + p !== location.hash) nav(p); });
+  e.preventDefault(); const p = a.getAttribute('href').slice(2); if ('#/' + p === location.hash) return;
+  const cv = a.querySelector('.cover-art');
+  if (cv && /^trip\/\d+$/.test(p) && document.startViewTransition && !reducedMotion()) { cv.style.viewTransitionName = 'trip-cover'; vtTrip = +p.split('/')[1]; withVT(() => { cv.style.viewTransitionName = ''; nav(p); }); return; }
+  nav(p); });
 /* 上一頁：App 內有上一頁就回去；從 QR、連結或通知直接打開的，回到這頁的上層，不會跳出 App */
 function parentOf(p){ const r = p.split('/');
   if (r[0] === 'trip' || r[0] === 'compare') return 'explore';
@@ -144,6 +152,7 @@ function render(){
   v.querySelectorAll('[data-back]').forEach(b => { if (!b.onclick) b.onclick = () => back(); });
   v.querySelectorAll('[data-top]').forEach(b => { if (!b.onclick) b.onclick = toTop; });
   app.replaceChildren(v); startFlips(v);
+  if (vtTrip !== null && r[0] !== 'trip') { const tl = v.querySelector(`a.tile[href="#/trip/${vtTrip}"] .cover-art`); if (tl) tl.style.viewTransitionName = 'trip-cover'; vtTrip = null; }
   const tabbed = TAB_ROOTS.has(r[0]) && !((r[0]==='pass' || r[0]==='me') && r[1]);
   drawTabs(tabbed ? r[0] : null);
   document.body.classList.toggle('has-tabs', tabbed);
@@ -214,7 +223,7 @@ function scrolled(){
   if (onScroll) onScroll(scrollY);
 }
 addEventListener('scroll', scrolled, { passive:true });
-function showFabTip(){ if (S.fabTip) return; S.fabTip = true; save(); fabs.tip.hidden = false; setTimeout(() => fabs.tip.hidden = true, 3000); }
+function showFabTip(){ if (S.fabTip) return; if (document.querySelector('.splash')) return setTimeout(showFabTip, 2600); S.fabTip = true; save(); fabs.tip.hidden = false; setTimeout(() => fabs.tip.hidden = true, 3000); }
 function lineSheet(){
   track('line_fab', { page:fabs.page });
   const fav = S.favs[0] ? short(TRIPS.find(t => t.name === S.favs[0]) || {name:S.favs[0]}) : '';
@@ -471,8 +480,32 @@ function finishQuiz(){
   state.ans.q12 = state.ans.q12 || [];
   state.pace = topPace(scores()); state.view = state.pace; S.quizDone = true;
   addNote('system', '歡迎加入歐洲旅人護照', `你的角色是「${PACES[state.pace].name}」。補完旅人檔案，推薦會更準。`, '#/me');
-  save(); nav('result', true);
+  save();
   if (online()) pushQuiz().then(() => track('quiz_complete', { role:state.pace }));
+  revealThen(() => nav('result', true));
+}
+
+/* ===== 02b 結果揭曉動畫：地圖亮起 → 推近第一站 → 角色卡翻面（約 1.5 秒，點一下跳過） ===== */
+function revealThen(go){
+  if (reducedMotion()) return go();
+  const top = mine()[0].t, g = regionOf(top), on = new Set(g.cc), P = PACES[state.view];
+  const el = document.createElement('div'); el.className = 'reveal';
+  el.innerHTML = `<svg class="rv-map" viewBox="40 60 720 680" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${GEO.filter(x => HOME[x.c]).map(x => `<path class="${on.has(x.c)?'hit':''}" d="${x.d}"/>`).join('')}</svg>
+    <p class="rv-msg">正在找你的歐洲…<small>比對 12 題答案與 ${TRIPS.length} 團行程</small></p>
+    <div class="rv-card"><div class="rv-face back">?</div><div class="rv-face front"><div class="rv-av">${av(P.ch,'start')}</div><b>${P.name}</b><span>${P.alias}</span></div></div>`;
+  document.body.append(el);
+  const svg = el.querySelector('svg'), msg = el.querySelector('.rv-msg');
+  const bb = [...svg.querySelectorAll('path.hit')].map(p => p.getBBox()).reduce((a, b) => ({ x:Math.min(a.x,b.x), y:Math.min(a.y,b.y), x2:Math.max(a.x2,b.x+b.width), y2:Math.max(a.y2,b.y+b.height) }), { x:1e9, y:1e9, x2:-1e9, y2:-1e9 });
+  const cx = (bb.x + bb.x2) / 2, cy = (bb.y + bb.y2) / 2, w1 = Math.max(160, (bb.x2 - bb.x) * 2.6);
+  let finished = false; const timers = [];
+  const end = () => { if (finished) return; finished = true; timers.forEach(clearTimeout); go(); el.classList.add('out'); setTimeout(() => el.remove(), 300); };
+  el.addEventListener('click', end);
+  timers.push(setTimeout(() => { el.classList.add('lit'); const t0 = performance.now();
+    const step = now => { if (finished) return; const k = Math.min(1, (now - t0) / 500), e = 1 - Math.pow(1 - k, 3), w = 720 + (w1 - 720) * e, h = w * 680 / 720;
+      svg.setAttribute('viewBox', `${40 + (cx - w/2 - 40) * e} ${60 + (cy - h/2 - 60) * e} ${w} ${h}`); if (k < 1) requestAnimationFrame(step); };
+    requestAnimationFrame(step); msg.innerHTML = `你的第一站：${g.full.replace(/（.*）/,'').split('・')[0]}<small>${short(top)}</small>`; }, 300));
+  timers.push(setTimeout(() => el.classList.add('flip'), 850));
+  timers.push(setTimeout(end, 1550));
 }
 
 /* ===== 03 結果 ===== */
@@ -484,7 +517,7 @@ function resultView(){
     <div class="r-av pop-in">${av(P.ch,'start')}</div>
     <h1>${P.name}</h1><p class="r-alias">${P.alias}・${P.pace}</p>
     <p class="r-desc">${P.desc}</p>
-    <div class="r-bars">${top3.map(k=>`<div class="rb ${k===state.pace?'top':''}"><span>${PACES[k].short}</span><div class="prog"><i style="width:${Math.round(sh[k]*100)}%"></i></div><b>${Math.round(sh[k]*100)}%</b></div>`).join('')}</div>
+    <div class="r-bars grow">${top3.map(k=>`<div class="rb ${k===state.pace?'top':''}"><span>${PACES[k].short}</span><div class="prog"><i style="width:${Math.round(sh[k]*100)}%"></i></div><b>${Math.round(sh[k]*100)}%</b></div>`).join('')}</div>
     <button class="btn1 b1" id="go">看我的 3 團推薦</button>
     <button class="btn2 b2" id="share">分享角色卡</button>
     <a class="txt-link" href="#/buddy">邀請旅伴一起測</a>
@@ -1188,6 +1221,7 @@ function settingsView(){
     </div>
     <h2 class="sh">關於</h2><div class="sgroup">
       <div class="srow"><span>版本</span><em class="muted">${APP_VER}</em></div>
+      <button class="srow" id="replay"><span>重播開場動畫</span>${ic('chev','end')}</button>
       <button class="srow" id="fb"><span>意見回饋<small>用 LINE 告訴我們哪裡不好用</small></span>${ic('chev','end')}</button>
       <div class="srow col"><span>關於這個 App<small>輔大創新創業社課程專案的原型，不是永信旅遊的官方 App；行程、價格與點數規則皆為示意。</small></span></div>
     </div>
@@ -1218,6 +1252,7 @@ function settingsView(){
       try { localStorage.removeItem(LS); } catch(e) {} location.href = baseUrl() + '#/home'; location.reload(); });
   const ex = el.querySelector('#exitDemo'); if (ex) ex.onclick = () => { try { localStorage.removeItem(LS); } catch(e) {} location.href = baseUrl() + '#/home'; location.reload(); };
   const oi = el.querySelector('#optin'); if (oi) oi.onclick = optIn;
+  el.querySelector('#replay').onclick = () => showSplash(true);
   el.querySelector('#fb').onclick = () => { if (S.demo) return toast('示範帳號不會真的傳出'); openLine(lineMsg('意見回饋：')); };
   return el;
 }
@@ -1306,4 +1341,5 @@ function cardQView(k, i){
   history.replaceState({i:0}, '', '#/' + chain[0]);
   for (let k = 1; k < chain.length; k++) history.pushState({i:++curIdx}, '', '#/' + chain[k]); })();
 render();
+if (typeof showSplash === 'function') showSplash();
 loadRemote().then(() => render());
