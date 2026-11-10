@@ -120,7 +120,7 @@
 | `icons/` | 主畫面圖示（192、512、Apple 180） |
 | `.nojekyll` | 讓 GitHub Pages 直接提供靜態檔案 |
 | `README.md` | 本說明 |
-| `app/` | App 版原型（旅客端）：`index.html` 外框、`app.js` 畫面與路由、`app.css` 品牌樣式；`core.js`、`base.css` 由 `build_core.py` 從根目錄 `index.html` 抽出，行程與題目只改根目錄那份 |
+| `app/` | App 版原型（旅客端）：`index.html` 外框、`app.js` 畫面與路由、`app.css` 品牌樣式；`core.js`、`base.css` 由 `build_core.py` 從根目錄 `index.html` 抽出，行程與題目只改根目錄那份 ；改完 `app.js`／`app.css` 也要跑一次 `python3 app/build_core.py`，會更新 `index.html` 的 `?v=` 版本戳，手機才不會讀到舊檔 |
 | `supabase/` | 資料庫結構：`schema.sql`、`schema_v2.sql`（旅伴、通知、點數明細）、`schema_v3.sql`（會員頭像、地區、偏好、撤回同意；旅客不能自改出團次數與分群）、`seed.sql`（30 位示意客人），設定步驟見 `supabase/README.md` |
 | `proposal/` | 提案的原始檔：列印版產生器、圖檔與 LINE 素材腳本、最新 PDF 與 LINE 上架包，說明見 `proposal/README.md` |
 

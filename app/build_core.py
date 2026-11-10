@@ -20,3 +20,11 @@ out = ['/* 由 build_core.py 自動產生，請勿手動修改 */', geo, *line_h
 (root / 'core.js').write_text('\n'.join(out) + '\n', encoding='utf-8')
 (root / 'base.css').write_text('/* 由 build_core.py 自動產生：沿用原型的配色與元件樣式 */\n' + css, encoding='utf-8')
 print('core.js', len('\n'.join(out)), 'bytes；base.css', len(css), 'bytes')
+
+# 版本戳：app/index.html 引用的 js/css 加上 ?v=內容雜湊，改版後手機不會讀到舊檔
+import hashlib, os, re as _re
+_d = os.path.dirname(os.path.abspath(__file__))
+_h = hashlib.md5(b''.join(open(os.path.join(_d, f), 'rb').read() for f in ['core.js', 'base.css', 'app.css', 'app.js'])).hexdigest()[:8]
+_p = os.path.join(_d, 'index.html'); _s = open(_p, encoding='utf8').read()
+_s = _re.sub(r'(href|src)="(base\.css|app\.css|core\.js|app\.js)(\?v=\w+)?"', lambda m: f'{m.group(1)}="{m.group(2)}?v={_h}"', _s)
+open(_p, 'w', encoding='utf8').write(_s); print('版本戳', _h)
