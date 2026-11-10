@@ -58,17 +58,17 @@ def cowbell(f0=620):
     y+=bp(rng.standard_normal(n),1500,7000)*np.exp(-90*t)*.6
     return y
 bell=z(); add(bell,cowbell()*.55,2.2)
-# ---------- pen (tagline only): char i written 0.2i..0.2i+0.2 ----------
+# ---------- pen: one scratch per stroke, timing shared with the video (strokes.json) ----------
+import json
 pen=z()
-for i in range(10):
-    n=int(.2*SR); t=np.arange(n)/SR
-    nz=bp(rng.standard_normal(n),1800,6500)
-    grain=0.55+0.45*np.abs(np.sin(2*np.pi*(35+rng.random()*20)*t+rng.random()*6))
-    sub=np.ones(n)
-    for g in rng.choice(np.arange(3,n//400-3),2,replace=False)*400: sub[g:g+int(.012*SR)]*=.08   # pen lifts between sub-strokes
-    e=env(n,.008,.03)*sub*grain
-    lvl=1.0 if i==0 else 0.25   # 先大聲，開唱後壓 12 dB
-    add(pen,nz*e*lvl*.5,0.2*i)
+for st in json.load(open('strokes.json')):
+    n=max(int(st['d']*SR),int(.012*SR)); t=np.arange(n)/SR
+    nz=bp(rng.standard_normal(n+400),1800,6500)[:n]
+    grain=0.6+0.4*np.abs(np.sin(2*np.pi*(30+rng.random()*25)*t+rng.random()*6))
+    e=env(n,.004,min(.012,st['d']*.4))*grain*(0.7+0.3*min(1,st['len']/600))
+    lvl=1.0 if st['char']==0 else 0.25   # 開唱前最大聲，之後壓 12 dB
+    add(pen,nz*e*lvl*.5,st['t'])
+    tk=int(.006*SR); add(pen,bp(rng.standard_normal(tk+200),2500,8000)[:tk]*np.exp(-np.arange(tk)/SR*900)*lvl*.6,st['t'])  # 下筆的「嗒」
 # ---------- guide melody: whistle ----------
 MEL=[(0.2,.2,'A4'),(0.4,.2,'G4'),(0.6,.2,'G4'),(0.8,.2,'E4'),(1.0,.2,'G4'),(1.2,.2,'G4'),(1.4,.2,'E4'),(1.6,.2,'D4'),(1.8,.2,'G4'),(2.0,.2,'C5'),
      (2.2,.2,'E5'),(2.4,.4,'C5'),(2.8,.2,'G4'),(3.0,.4,'C5'),(3.4,.2,'A4'),(3.6,1.0,'SLIDE')]
@@ -102,7 +102,10 @@ def save(name,x,count_in=False):
         x=np.concatenate([cl,x])
     x=norm(x,.89); st=np.stack([x,x],1)
     w=wave.open(name,'wb'); w.setnchannels(2); w.setsampwidth(2); w.setframerate(SR); w.writeframes((st*32767).astype('<i2').tobytes()); w.close()
+from scipy.signal import resample_poly
+import soundfile as sf
+vx,vsr=sf.read('vox/vocal_22k.wav'); vx=resample_poly(vx,SR,vsr)[:len(inst)]; vx=np.pad(vx,(0,len(inst)-len(vx)))
+vx=vx/np.sqrt(np.mean(vx**2))*np.sqrt(np.mean(inst**2))*2.6
 save('jingle_伴奏.wav',inst)
-save('jingle_示意版.wav',inst+mel*0.42)
-save('jingle_錄音導引.wav',inst+mel*0.42,count_in=True)
+save('jingle_完整版.wav',inst*0.85+vx)
 print('ok')
