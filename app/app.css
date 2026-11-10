@@ -421,3 +421,50 @@ div.srow{cursor:default}
 .face img,.face svg{width:100%;height:100%;object-fit:cover;display:block}
 .face.back{transform:rotateY(180deg)}
 @media (prefers-reduced-motion:reduce){.flip-in{transition:none}}
+
+/* ---- 頭像：首頁護照卡、護照頁小照片、編輯頁預覽 ---- */
+.pc-av.flip{width:56px;height:56px;flex:none;display:block;cursor:pointer;perspective:400px;border-radius:50%}
+.pp-av-wrap{position:relative;flex:none}
+.pp-photo{position:absolute;right:-6px;bottom:-6px;width:30px;height:30px;border-radius:50%;object-fit:cover;border:2px solid var(--navy);background:#fff}
+.photo-row{display:flex;gap:12px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px 12px}
+.photo-row img{width:52px;height:52px;border-radius:50%;object-fit:cover;flex:none}
+.photo-row .sw{flex:1}
+/* ---- 分段按鈕（3 格） ---- */
+.seg.seg3{grid-template-columns:repeat(3,1fr)}
+.seg button{border:0;background:none;font:inherit;padding:8px;border-radius:9px;color:var(--muted);font-weight:700;font-size:14px;cursor:pointer}
+.seg button[aria-current="page"]{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.row2{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.row2 .btn1,.row2 .btn2{padding:12px 10px;font-size:15px}
+/* ---- 自我介紹 ---- */
+.intro-ed textarea{font:inherit;font-weight:400;padding:12px 14px;border:1.5px solid var(--line);border-radius:12px;background:#fff;resize:none;line-height:1.6;color:var(--ink)}
+.warn-t{color:var(--alert)!important;font-weight:700!important}
+.mate{display:flex;gap:12px;background:#fff;border:1px solid var(--line);border-radius:16px;padding:12px}
+.mate.me{border-color:#F7C99A;background:#FFFBF5}
+.mate-av{width:46px;height:46px;border-radius:50%;overflow:hidden;flex:none;background:var(--cream)}.mate-av svg{width:100%;height:100%}
+.mate-b{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.mate-h{display:flex;align-items:center;gap:8px}.mate-h b{font-size:15px}.mate-h span{font-size:12px;color:var(--orange-ink);font-weight:700}
+.mate-h em{margin-left:auto;font-style:normal;font-size:11.5px;color:var(--muted);background:var(--cream);border-radius:999px;padding:2px 8px}
+.mate p{font-size:14px;line-height:1.6}
+.mate-tags{display:flex;flex-wrap:wrap;gap:6px}
+.mate-tags i{font-style:normal;font-size:12px;padding:3px 9px;border-radius:999px;background:var(--cream);border:1px solid var(--line)}
+.metoo{font:inherit;font-size:12px;padding:3px 9px;border-radius:999px;background:#fff;border:1.5px solid var(--line);color:var(--ink);cursor:pointer}
+.metoo.same{border-color:#F7C99A;color:var(--orange-ink);font-weight:700}
+.metoo.on{background:var(--brand);border-color:var(--brand);color:var(--ink)}
+.mates{display:flex;flex-direction:column;gap:10px}
+/* ---- 投票 ---- */
+.pq{display:flex;flex-direction:column;gap:6px;padding:8px 0;border-top:1px solid #F1EBDF}
+.pq-h{display:flex;justify-content:space-between;gap:8px;align-items:baseline}.pq-h b{font-size:14.5px}
+.vote3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.vote3 button{font:inherit;font-size:13.5px;padding:8px 4px;border-radius:10px;border:1.5px solid var(--line);background:#fff;color:var(--ink);cursor:pointer;box-shadow:0 2px 0 #EFE7D8;transition:transform .1s}
+.vote3 button:active{transform:scale(.96)}
+.vote3 button[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--brand);color:var(--orange-ink);font-weight:700}
+.poll-res{background:var(--accent-soft);border-radius:10px;padding:8px 10px;font-size:14px}.poll-res b{color:var(--orange-ink)}
+.grp-btn{white-space:nowrap}
+/* ---- 團友牆 ---- */
+.team-hero{background:var(--navy);color:#fff;border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:2px}
+.team-hero span{font-size:13px;opacity:.85}.team-hero b{font-size:26px;color:var(--brand)}.team-hero small{font-size:12.5px;opacity:.8}
+.dist{display:flex;flex-direction:column;gap:6px}
+.dist>div{display:grid;grid-template-columns:52px 1fr 24px;gap:8px;align-items:center;font-size:13px}.dist b{text-align:right}
+.vis-row{display:flex;flex-direction:column;gap:6px}
+.squad{background:var(--accent-soft);border-color:#F7C99A}.squad p{font-size:14px}.squad b{color:var(--orange-ink)}
+.fld .mate,.fld .mate p{font-weight:400}.fld .mate b{font-weight:700}

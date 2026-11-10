@@ -58,10 +58,13 @@ function demoLedger(){ return [
 const LS = 'ys_app_v2';
 const S = Object.assign({consent:null, demo:false, ans:{}, pace:null, view:null, prof:{}, favs:[], cmp:[], quizDone:false,
   notes:[], ledger:[], buddies:[], nickname:'', lineSync:true, me:null, inv:null, flt:null, region:null,
-  inq:[], avatar:null, region_tw:null, prefs:{}, fltDefault:null, photo:null, photoOn:false},
+  inq:[], avatar:null, region_tw:null, prefs:{}, fltDefault:null, photo:null, photoOn:false,
+  intro:null, polls:[], groups:[], pendPoll:null, pendJoin:null, metoo:[], demoPoll:null, demoGroup:null},
   (()=>{try{return JSON.parse(localStorage.getItem(LS)||'{}')}catch(e){return {}}})());
 S.me = null; state.ans = S.ans || {}; if (S.pace) { state.pace = S.pace; state.view = S.view || S.pace; }
-const invParam = new URLSearchParams(location.search).get('inv'); if (invParam) { S.inv = invParam.toUpperCase().slice(0,6); }
+const _qs = new URLSearchParams(location.search), invParam = _qs.get('inv'); if (invParam) { S.inv = invParam.toUpperCase().slice(0,6); }
+if (_qs.get('poll')) S.pendPoll = _qs.get('poll').toUpperCase().slice(0,6);
+if (_qs.get('join')) S.pendJoin = _qs.get('join').toUpperCase().slice(0,6);
 function save(){ S.ans = state.ans; S.pace = state.pace; S.view = state.view;
   const keep = {...S}; delete keep.me;
   try{localStorage.setItem(LS, JSON.stringify(keep))}catch(e){} }
@@ -112,12 +115,13 @@ document.addEventListener('click', e => { const a = e.target.closest('a[href^="#
 /* 上一頁：App 內有上一頁就回去；從 QR、連結或通知直接打開的，回到這頁的上層，不會跳出 App */
 function parentOf(p){ const r = p.split('/');
   if (r[0] === 'trip' || r[0] === 'compare') return 'explore';
+  if (r[0] === 'team') return 'buddy';
   if (r[0] === 'me' && r[1] === 'legal') return 'me/settings';
   if (['explore','pass','me','inbox'].includes(r[0]) && r[1]) return r[0];
   if (!r[0] || r[0] === 'home') return null;
   return 'home'; }
 function back(fallback){ dir = 'back'; if (curIdx > 0) history.back(); else nav(fallback || parentOf(route().join('/')) || 'home', true); }
-const GATED = new Set(['buddy','pass','compare','advisor']);
+const GATED = new Set(['buddy','pass','compare','advisor','team']);
 const TABS = [['home','首頁'],['explore','探索'],['buddy','旅伴'],['pass','護照'],['me','會員']];
 const TAB_ROOTS = new Set(['home','explore','buddy','pass','me']);
 const NO_TOP = new Set(['quiz','welcome','result']);
@@ -127,13 +131,13 @@ function render(){
   if (GATED.has(r[0]) && !S.quizDone) { S.after = r.join('/'); save(); return nav('welcome', true); }
   const views = {home:()=>S.quizDone?homeView():homeNewView(), welcome:welcomeView, quiz:quizView, result:resultView,
     explore:()=>r[1]==='map'?mapView():exploreView(), trip:tripView, compare:compareView, buddy:buddyView, pass:()=>r[1]==='points'?pointsView():passView(),
-    me:()=>({card:()=>cardQView(r[2], +r[3]||0), edit:editView, settings:settingsView, favs:favsView, inquiries:inquiriesView, legal:()=>legalView(r[2])}[r[1]] || meView)(), inbox:inboxView, advisor:advisorView};
+    me:()=>({card:()=>cardQView(r[2], +r[3]||0), edit:editView, settings:settingsView, favs:favsView, inquiries:inquiriesView, legal:()=>legalView(r[2]), intro:introView}[r[1]] || meView)(), team:teamView, inbox:inboxView, advisor:advisorView};
   onScroll = null; clearInterval(flipTimer);
   const v = (views[r[0]] || views.home)(), goingBack = dir === 'back';
   v.classList.add('screen', goingBack ? 'in-back' : 'in-fwd'); dir = 'fwd';
   v.querySelectorAll('[data-back]').forEach(b => { if (!b.onclick) b.onclick = () => back(); });
   v.querySelectorAll('[data-top]').forEach(b => { if (!b.onclick) b.onclick = toTop; });
-  app.replaceChildren(v);
+  app.replaceChildren(v); startFlips(v);
   const tabbed = TAB_ROOTS.has(r[0]) && !((r[0]==='pass' || r[0]==='me') && r[1]);
   drawTabs(tabbed ? r[0] : null);
   document.body.classList.toggle('has-tabs', tabbed);
@@ -170,6 +174,20 @@ function bindBack(el, fb){
 
 /* ===== 懸浮按鈕：回到頂部、LINE 問顧問 ===== */
 let onScroll = null, flipTimer = null;
+/* 頭像：示範帳號有照片時，照片與角色頭像每 4 秒翻面；點一下手動翻 */
+function avatarHTML(cls){
+  const P = PACES[avatarKey()], T = TIERS[tierIdx()];
+  if (S.photo && S.photoOn) return `<span class="${cls} flip" role="button" tabindex="0" aria-label="頭像：照片與${P.short}頭像輪流顯示，點一下翻面"><span class="flip-in"><span class="face front"><img src="${S.photo}" alt="${esc(S.nickname)}（示意照片）"></span><span class="face back">${av(P.ch, T[0])}</span></span></span>`;
+  return `<div class="${cls}">${av(P.ch, T[0])}</div>`;
+}
+function startFlips(el){
+  const fls = [...el.querySelectorAll('.flip')]; if (!fls.length) return;
+  const turn = () => fls.forEach(f => f.classList.toggle('flipped'));
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  fls.forEach(f => { f.onclick = e => { e.preventDefault(); e.stopPropagation(); f.classList.toggle('flipped'); clearInterval(flipTimer); if (!reduced) flipTimer = setInterval(turn, 4000); };
+    f.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') f.onclick(e); }; });
+  if (!reduced) flipTimer = setInterval(turn, 4000);
+}
 const fabs = (() => {
   const box = $h(`<div class="fabs"><span class="fab-tip" hidden>有問題問顧問</span>
     <button class="fab top" aria-label="回到頂部" hidden><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V6M6 11l6-6 6 6"/></svg></button>
@@ -239,7 +257,7 @@ async function loadRemote(){
     sb.from('favorites').select('trip_name').eq('customer_id', me.id),
     sb.from('notifications').select('*').eq('customer_id', me.id).order('created_at', {ascending:false}).limit(50),
     sb.from('point_ledger').select('*').eq('customer_id', me.id).order('created_at', {ascending:false})]);
-  if (p.data) CARDS.forEach(c => { if (p.data[c.k]) S.prof[c.k] = p.data[c.k]; });
+  if (p.data) { CARDS.forEach(c => { if (p.data[c.k]) S.prof[c.k] = p.data[c.k]; }); if (p.data.intro) S.intro = p.data.intro; }
   if (f.data) S.favs = f.data.map(x => x.trip_name);
   if (n.data) { const local = S.notes.filter(x => !x.db); S.notes = [...n.data.map(dbNote), ...local]; }
   if (l.data && l.data.length) { const reasons = new Set(l.data.map(x=>x.reason)); S.ledger = [...l.data.map(x=>({reason:x.reason,label:x.label,points:x.points,status:x.status,at:x.created_at})), ...S.ledger.filter(x=>!reasons.has(x.reason))]; }
@@ -250,7 +268,7 @@ async function loadRemote(){
   const iq = await sb.from('inquiries').select('trip_name,status,created_at').eq('customer_id', me.id).order('created_at', {ascending:false});
   if (iq.data) S.inq = iq.data.map(x => ({ trip:x.trip_name, status:x.status, at:x.created_at }));
   await loadBuddies();
-  save();
+  save(); processPending();
   sb.channel('notif-' + me.id).on('postgres_changes', { event:'INSERT', schema:'public', table:'notifications', filter:`customer_id=eq.${me.id}` },
     async payload => { S.notes.unshift(dbNote(payload.new)); if (payload.new.kind === 'buddy') await loadBuddies(); save(); toast(payload.new.title); render(); }).subscribe();
 }
@@ -266,6 +284,7 @@ async function pushProfile(){
   if (!online()) return; const me = await ensureCustomer(); if (!me) return;
   const row = { customer_id:me.id, completion:completion(), points:points(), updated_at:new Date().toISOString() };
   CARDS.forEach(c => { if (S.prof[c.k]) row[c.k] = S.prof[c.k]; });
+  if (S.intro) row.intro = S.intro;
   const r = await sb.from('profiles').upsert(row); if (r.error) toast('檔案儲存失敗：' + r.error.message);
 }
 async function pushQuiz(){
@@ -277,7 +296,7 @@ async function pushQuiz(){
     const j = await sb.rpc('join_buddy', { p_code:S.inv });
     if (!j.error) { S.inv = null; S.ledger.unshift({reason:'buddy', label:'和旅伴一起測', points:100, status:'posted', at:new Date().toISOString()}); await loadBuddies(); toast('已和邀請你的旅伴配對，各得 100 點'); }
   }
-  await pushProfile(); save();
+  await pushProfile(); save(); processPending();
 }
 
 /* ===== 檔案 → 推薦 ===== */
@@ -391,7 +410,7 @@ function welcomeView(){
     <div class="w-art">${(()=>{ const paths = GEO.filter(x=>HOME[x.c]).map(x=>`<path d="${x.d}" class="${HOME[x.c]}"/>`).join(''); return `<svg viewBox="40 60 720 680" aria-hidden="true">${paths}</svg>`; })()}</div>
     <h1>一分鐘找到<br>自己的歐洲</h1>
     <p>12 題情境測驗，找出你的旅人角色，拿到 3 團剛好適合你的行程。</p>
-    ${S.inv?'<p class="inv-note">你的旅伴邀請你一起測；做完會看到你們都適合的團。</p>':''}
+    ${S.inv||S.pendPoll||S.pendJoin?`<p class="inv-note">${S.pendJoin?'旅伴邀你一起揪團':S.pendPoll?'旅伴邀你一起投票':'你的旅伴邀請你一起測'}；按「同意並開始測驗」，做完就會自動加入。</p>`:''}
     <button class="btn1 b1" id="yes">同意並開始測驗</button>
     <button class="btn2 b2" id="member">我已經是永信旅客</button>
     <p class="fine">會記錄測驗與旅人檔案，用來推薦行程；不需姓名電話，可隨時刪除。<button class="txt" id="more">了解更多</button>　<button class="txt" id="no">不儲存，先試玩</button></p>
@@ -477,7 +496,7 @@ function homeView(){
     <div class="home-h"><div><p>${greet()}${S.nickname?`，${esc(S.nickname)}`:''}</p><h1>${P.name}</h1></div>
       <a class="icon-btn bell" href="#/inbox" aria-label="通知">${ic('bell')}${unread()?`<i class="badge">${unread()}</i>`:''}</a></div>
     ${S.demo?'<p class="demo-tag">示範帳號・不會存檔</p>':''}
-    <a class="pass-card b3" href="#/pass"><div class="pc-av">${av(PACES[avatarKey()].ch, T[0])}</div>
+    <a class="pass-card b3" href="#/pass">${avatarHTML('pc-av')}
       <div><b>${P.short}・${T[1]}等級</b><span>${points()} 點・可折抵 ${points()} 元</span></div>${ic('chev','end')}</a>
     ${c<100?`<a class="prof-row op" href="#/me"><div><b>旅人檔案 ${c}%</b><span>補完再拿 ${cardPtsLeft()} 點</span></div><div class="prog"><i style="width:${c}%"></i></div></a>`:''}
     <div class="sec-h"><h2>為你推薦</h2><a href="#/explore">全部</a></div>
@@ -639,12 +658,20 @@ function buddyView(){
       <div class="box"><p><b>你們都在意</b>　${B.common.join('、') || '還看不出來，請旅伴補旅人檔案'}</p>
         ${B.diff.length?`<p><b>不一樣的地方</b>　${B.diff.join('；')}</p>`:''}</div>
       <div class="sec-h"><h2>兩人都適合的 3 團</h2><span class="muted small">依兩人檔案交集</span></div>
-      <div class="rows">${B.joint.map(j => `<a class="row-card op" href="#/trip/${TRIPS.indexOf(j.t)}"><div class="rc-main"><b>${short(j.t)}</b><span>${j.why}</span><span class="muted">${j.t.from.toFixed(1)} 萬起・${j.t.months}</span></div>${ic('chev','end')}</a>`).join('')}</div>
-      <p class="muted small">兩人都完成旅人檔案，同團報名第二人享折扣（示意），各得 100 點。</p>
+      <div class="rows">${B.joint.map(j => `<div class="row-card op"><a class="rc-main" href="#/trip/${TRIPS.indexOf(j.t)}"><b>${short(j.t)}</b><span>${j.why}</span><span class="muted">${j.t.from.toFixed(1)} 萬起・${j.t.months}</span></a><button class="cmp-tg grp-btn" data-group-from="${TRIPS.indexOf(j.t)}">揪這團</button></div>`).join('')}</div>
       ${S.buddies.length>1?`<p class="muted small">另外還有 ${S.buddies.length-1} 位旅伴：${S.buddies.slice(1).map(x=>esc(x.nickname||PACES[x.role_key].short)).join('、')}</p>`:''}`; }
   const el = $h(`<section class="pad">
     ${head('旅伴', {big:true, back:'auto', right:'<button class="txt-btn" id="inv">＋ 邀請</button>'})}
-    ${body}</section>`);
+    ${body}
+    <div class="sec-h"><h2>一起決定</h2><button class="txt-btn" id="newPoll">＋ 發起投票</button></div>
+    <div id="polls"><p class="muted small">載入中…</p></div>
+    <div class="sec-h"><h2>揪團</h2><span class="muted small">湊滿有優惠＋點數</span></div>
+    <div id="groups"></div>
+    <a class="link-row op" href="#/team">${ic('star')}<span>我的團：團友牆${S.demo?'（巴黎 3/18 團）':''}</span>${ic('chev','end')}</a>
+  </section>`);
+  el.querySelector('#newPoll').onclick = () => pollSheet(b ? buddyInfo(b).joint.concat(mine().slice(0,3)).filter((x,i,arr)=>arr.findIndex(y=>y.t===x.t)===i) : mine().slice(0,4));
+  el.querySelectorAll('.rows [data-group-from]').forEach(x => x.onclick = () => groupSheet(+x.dataset.groupFrom));
+  fillSocial(el);
   const invite = () => inviteSheet();
   el.querySelector('#inv').onclick = invite; const i2 = el.querySelector('#inv2'); if (i2) i2.onclick = invite;
   return el;
@@ -662,6 +689,253 @@ function inviteSheet(){
       close(); track('share', { what:'invite' });
       shareText(`${nn || '我'}是「${PACES[state.view].name}」，一起做一分鐘歐洲旅人測驗，看我們都適合哪幾團：${baseUrl()}?inv=${me.code}`, '邀請連結已複製，貼給旅伴就好');
     }; });
+}
+
+/* ===== 09b 自我介紹模板：依作答產生，三種版本，可增減標籤、換一句、自己改 ===== */
+const TAG_DEF = {
+  '愛美食':['like','吃在地美食','有推薦的小店請告訴我！'], '愛建築藝術':['like','看建築和美術館','有順路的展覽歡迎揪我！'],
+  '追花季':['like','看花季','花開的地方一起拍照吧！'], '追極光':['like','看極光','極光夜一起熬夜吧！'],
+  '愛咖啡甜點':['like','吃甜點喝咖啡','有好吃的甜點店歡迎推薦！'], '愛逛美術館':['like','逛美術館','有順路的展覽歡迎揪我！'],
+  '聽音樂會':['like','聽音樂會','有音樂會可以一起去！'], '愛逛街':['like','逛街','自由時間可以一起逛！'],
+  '愛拍照':['like','拍照','需要拍照可以找我！'], '愛巷弄小店':['like','找巷弄小店','有推薦的小店請告訴我！'],
+  '愛聽在地故事':['like','聽在地故事','有好玩的小故事歡迎分享！'], '愛名景打卡':['like','去名景打卡','一起拍經典照吧！'],
+  '慢慢逛':['style','慢慢逛'], '跟著導覽走':['style','把精華一次看完'], '半導覽半自由':['style','半天導覽半天自由'],
+  '名店先拍再找小店':['style','名店先拍、再找在地小店'],
+  '怕熱':['avoid','比較怕熱'], '不愛購物站':['avoid','不太愛購物站'], '怕長途拉車':['avoid','怕長途拉車'],
+  '要有自由時間':['avoid','喜歡有自由時間'], '喜歡連泊':['avoid','喜歡連泊不換飯店'], '走路慢慢來':['avoid','走路慢慢來']
+};
+function introPool(ans = state.ans, prof = S.prof, role = state.view){
+  const out = [], add = t => { if (t && !out.includes(t)) out.push(t); }, C = prof.card_c || {}, B = prof.card_b || {};
+  add(['愛美食','愛建築藝術','追花季','追極光','愛咖啡甜點'][ans.q6]);
+  (C.interests || []).forEach(i => add(['愛咖啡甜點','愛逛美術館','聽音樂會','追極光','愛逛街','愛美食','愛拍照'][i]));
+  add({slow:'慢慢逛', precise:'跟著導覽走', balanced:'半導覽半自由'}[PACES[role] && PACES[role].tempo]);
+  (ans.q12 || []).forEach(i => add(['喜歡連泊','不愛購物站','怕長途拉車','要有自由時間','怕熱'][i]));
+  if (B.hot === 0) add('怕熱'); if (B.shop === 0) add('不愛購物站'); if (B.walk === 0) add('走路慢慢來');
+  add({0:'愛聽在地故事', 2:'愛名景打卡'}[ans.q5]);
+  add({0:'愛巷弄小店', 2:'愛名景打卡', 3:'名店先拍再找小店'}[ans.q9]);
+  add({0:'愛巷弄小店', 1:'名店先拍再找小店'}[C.explore]);
+  return out;
+}
+const AVOID_ORDER = ['怕熱','不愛購物站','怕長途拉車','要有自由時間','走路慢慢來','喜歡連泊'];   // 最常讓人不舒服的排前面
+function defaultTags(pool){ const pick = t => pool.find(x => TAG_DEF[x][0] === t);
+  const avoid = AVOID_ORDER.find(x => pool.includes(x));
+  return [pick('like'), pick('style'), avoid].filter(Boolean).slice(0, 3); }
+const TONES = [['short','一句話'],['std','標準'],['invite','揪人版']];
+function introText(tone, tags, v = 0, nick = S.nickname, role = state.view){
+  const P = PACES[role], kind = k => tags.find(t => TAG_DEF[t] && TAG_DEF[t][0] === k);
+  const like = kind('like'), sty = kind('style'), avoid = kind('avoid');
+  const likeV = like ? TAG_DEF[like][1] : '', avoidV = avoid ? TAG_DEF[avoid][1] : '', styV = sty ? TAG_DEF[sty][1] : '';
+  const ask = like ? TAG_DEF[like][2] : '請多指教！', me = nick ? `我是${nick}，` : '';
+  const T = {
+    short: [`${P.short}一枚，${[like, avoidV].filter(Boolean).join('、')}，請多指教！`,
+            `${P.short}報到！${[likeV && '喜歡' + likeV, avoidV].filter(Boolean).join('，')}。`,
+            `${me}${P.short}，${[styV, likeV].filter(Boolean).join('、')}，${ask}`],
+    std:   [`嗨，${me}測出來是${P.short}（${P.name}）。${likeV ? '喜歡' + likeV : ''}${styV ? (likeV ? '，習慣' : '習慣') + styV : ''}${avoidV ? '；' + avoidV : ''}。${ask}`,
+            `大家好，${me}旅人角色是${P.short}。這趟想${[styV, likeV].filter(Boolean).join('、') || '好好放鬆'}${avoidV ? '，' + avoidV : ''}。${ask}`],
+    invite:[`我是${P.short}，這趟想${[styV || '好好玩', likeV].filter(Boolean).join('、')}${avoidV ? '，' + avoidV : ''}，一起來嗎？`,
+            `找旅伴！${P.short}一枚，想${likeV || styV || '放鬆一下'}${avoidV ? '，' + avoidV : ''}，有興趣嗎？`]
+  }[tone] || [];
+  return (T[v % T.length] || '').replace(/，，/g, '，').replace(/。。/g, '。').replace(/，。/g, '。');
+}
+const CONTACT_RE = /((\+?886|0)9\d{2}[- ]?\d{3}[- ]?\d{3})|(\d{2,4}[- ]?\d{3,4}[- ]?\d{3,4})|https?:\/\/|www\.|line\s*(id)?\s*[:：]|@[a-z0-9_.]{3,}|[\w.+-]+@[\w-]+\.[\w.]+/i;
+function myIntro(){
+  const pool = introPool();
+  if (S.intro) return S.intro;
+  const tags = defaultTags(pool);
+  return { tone:'short', tags, v:0, text:introText('short', tags, 0), custom:false, vis:'team' };
+}
+function introView(){
+  const pool = introPool(), it = JSON.parse(JSON.stringify(myIntro()));
+  const el = $h(`<section class="pad intro-ed">${topbar('我的自我介紹', {home:true})}
+    <p class="muted small">依你的測驗與旅人檔案自動產生，不用打字；可以換版本、增減標籤，也能自己改。</p>
+    <div class="seg seg3">${TONES.map(([k,l])=>`<button data-tone="${k}" aria-current="${it.tone===k?'page':'false'}">${l}</button>`).join('')}</div>
+    <div class="fld"><span>標籤（最多 5 個，點一下拿掉）</span><div class="chips-s" id="tags"></div></div>
+    <div class="fld"><span>從你的作答再加</span><div class="chips-s" id="pool"></div></div>
+    <label class="fld"><span>介紹文字</span><textarea id="tx" maxlength="60" rows="3"></textarea><small id="cnt"></small><small class="warn-t" id="warn" hidden>這裡會給同團的人看到，電話、LINE ID、網址請私下交換</small></label>
+    <div class="row2"><button class="btn2 b2" id="next">換一句</button><button class="btn2 b2" id="reset">回到模板</button></div>
+    <div class="fld"><span>預覽：團友看到的角色卡</span><div id="pv"></div></div>
+    <div class="fld"><span>公開範圍</span><div class="seg seg3" id="vis">${[['team','只給領隊'],['all','全團'],['none','不公開']].map(([k,l])=>`<button data-vis="${k}" aria-current="${it.vis===k?'page':'false'}">${l}</button>`).join('')}</div>
+      <small>預設只給領隊；隨時可以改或收回。不顯示照片與真實姓名</small></div>
+    <button class="btn1 b1" id="save">儲存</button></section>`);
+  bindBack(el, 'me');
+  const tx = el.querySelector('#tx');
+  const regen = () => { if (!it.custom) it.text = introText(it.tone, it.tags, it.v); draw(); };
+  const draw = () => {
+    el.querySelector('#tags').innerHTML = it.tags.map(t => `<button class="fc on" data-rm="${t}">${t} ✕</button>`).join('') || '<span class="muted small">至少選一個</span>';
+    el.querySelector('#pool').innerHTML = pool.filter(t => !it.tags.includes(t)).map(t => `<button class="fc" data-add="${t}">＋ ${t}</button>`).join('') || '<span class="muted small">沒有更多了</span>';
+    tx.value = it.text; el.querySelector('#cnt').textContent = `${it.text.length}／60 字${it.custom ? '・已自訂' : ''}`;
+    el.querySelector('#warn').hidden = !CONTACT_RE.test(it.text);
+    el.querySelector('#pv').innerHTML = mateCard({ nick:S.nickname || '旅人', role:state.view, tags:it.tags, text:it.text, me:true });
+    el.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { it.tags = it.tags.filter(x => x !== b.dataset.rm); regen(); });
+    el.querySelectorAll('[data-add]').forEach(b => b.onclick = () => { if (it.tags.length >= 5) return toast('最多 5 個標籤'); it.tags.push(b.dataset.add); regen(); });
+  };
+  el.querySelectorAll('[data-tone]').forEach(b => b.onclick = () => { it.tone = b.dataset.tone; it.v = 0; it.custom = false; el.querySelectorAll('[data-tone]').forEach(x => x.setAttribute('aria-current', x === b ? 'page' : 'false')); regen(); });
+  el.querySelectorAll('[data-vis]').forEach(b => b.onclick = () => { it.vis = b.dataset.vis; el.querySelectorAll('[data-vis]').forEach(x => x.setAttribute('aria-current', x === b ? 'page' : 'false')); });
+  el.querySelector('#next').onclick = () => { it.v++; it.custom = false; regen(); };
+  el.querySelector('#reset').onclick = () => { it.custom = false; it.v = 0; regen(); };
+  tx.oninput = () => { it.text = tx.value; it.custom = true; el.querySelector('#cnt').textContent = `${it.text.length}／60 字・已自訂`; el.querySelector('#warn').hidden = !CONTACT_RE.test(it.text);
+    el.querySelector('#pv').innerHTML = mateCard({ nick:S.nickname || '旅人', role:state.view, tags:it.tags, text:it.text, me:true }); };
+  el.querySelector('#save').onclick = () => {
+    if (CONTACT_RE.test(it.text)) return toast('請拿掉電話、LINE ID 或網址再儲存');
+    if (!it.tags.length) return toast('至少留一個標籤');
+    S.intro = { ...it, updated_at:new Date().toISOString() }; save(); pushProfile(); toast('已儲存自我介紹'); back('me');
+  };
+  draw(); return el;
+}
+function mateCard(m, opts = {}){
+  const P = PACES[m.role] || PACES.alice, mine = new Set((myIntro().tags) || []);
+  return `<div class="mate ${m.me?'me':''}"><div class="mate-av">${av(P.ch,'start')}</div><div class="mate-b">
+    <div class="mate-h"><b>${esc(m.nick)}</b><span>${P.short}</span>${m.me&&opts.vis?`<em>${({team:'只給領隊',all:'全團公開',none:'不公開'})[opts.vis]}</em>`:''}</div>
+    <p>${esc(m.text)}</p><div class="mate-tags">${(m.tags||[]).map(t => opts.metoo && !m.me ? `<button class="metoo ${S.metoo.includes(m.nick+'|'+t)?'on':''} ${mine.has(t)?'same':''}" data-mt="${esc(m.nick)}|${t}">${t}${mine.has(t)?'・我也是':''}</button>` : `<i>${t}</i>`).join('')}</div></div></div>`;
+}
+
+/* ===== 09c 投票與揪團 ===== */
+const GROUP_PERKS = '揪團方案（示意，待業師確認）：2 人同行第二人折 2,000 元；4 人成團加贈旅行周邊；湊滿每人 +100 點';
+const VOTE_L = ['不行','可以','想去'];
+function demoPoll(){ const t = q => TRIPS[tripId(q)].name;
+  return S.demoPoll || (S.demoPoll = { code:'DEMO01', mine:true, owner:S.nickname, trips:[t('巴黎精品與甜點'), t('西葡'), t('北歐極光')],
+    votes:[{ nick:'林雅婷', role:'cat', votes:[2,1,1], months:[0], me:true }, { nick:'怡君', role:'rabbit', votes:[2,0,1], months:[0,1] }] }); }
+function demoGroup(){ return S.demoGroup || (S.demoGroup = { code:'DEMO02', mine:true, owner:S.nickname, trip:TRIPS[tripId('巴黎精品與甜點')].name, depart:'3 月', target:3,
+    deadline:new Date(Date.now()+5*864e5).toISOString().slice(0,10), status:'open', members:[{ nick:'林雅婷', role:'cat', me:true }, { nick:'怡君', role:'rabbit' }] }); }
+function pollResult(p){
+  const score = p.trips.map((t, i) => p.votes.reduce((s, v) => s + (v.votes[i] || 0), 0));
+  const best = score.indexOf(Math.max(...score)), months = {};
+  p.votes.forEach(v => (v.months || []).forEach(m => months[m] = (months[m] || 0) + 1));
+  const mBest = Object.entries(months).sort((a, b) => b[1] - a[1])[0];
+  return { score, best, month: mBest ? CARDS[0].qs[1].o[+mBest[0]] : null };
+}
+function pollCard(p){
+  const R = pollResult(p), mineV = (p.votes.find(v => v.me) || {}).votes || [];
+  return `<div class="poll box" data-code="${p.code}"><div class="sec-h"><h3>${p.mine?'你發起的投票':esc(p.owner)+' 發起的投票'}</h3><span class="muted small">${p.votes.length} 人已選</span></div>
+    ${p.trips.map((t, i) => { const cnt = [0,1,2].map(k => p.votes.filter(v => v.votes[i] === k).length);
+      return `<div class="pq"><div class="pq-h"><b>${short({name:t})}</b><span class="muted small">想去 ${cnt[2]}・可以 ${cnt[1]}・不行 ${cnt[0]}</span></div>
+        <div class="vote3">${[2,1,0].map(k => `<button data-v="${i}:${k}" aria-pressed="${mineV[i]===k}">${VOTE_L[k]}</button>`).join('')}</div></div>`; }).join('')}
+    ${p.votes.length?`<p class="poll-res">目前推薦：<b>${short({name:p.trips[R.best]})}</b>${R.month?`・${R.month}出發`:''}</p>`:''}
+    <div class="row2">${p.mine?`<button class="btn2 b2" data-share-poll="${p.code}">再傳給旅伴</button>`:''}<button class="btn1 b1" data-group-from="${TRIPS.findIndex(x => x.name === p.trips[R.best])}">揪這團</button></div></div>`;
+}
+function groupCard(g){
+  const n = g.members.length, pct = Math.min(100, Math.round(n / g.target * 100));
+  const st = g.status === 'sent' ? '已送給顧問' : g.status === 'full' ? '已湊滿' : `還差 ${Math.max(0, g.target - n)} 人`;
+  return `<div class="group box"><div class="sec-h"><h3>揪團：${short({name:g.trip})}</h3><span class="st st-${g.status==='open'?'new':'won'}">${st}</span></div>
+    <p class="muted small">${g.depart||'月份未定'}出發・截止 ${String(g.deadline).slice(5).replace('-','/')}・${g.mine?'你發起':esc(g.owner)+' 發起'}</p>
+    <div class="prog"><i style="width:${pct}%"></i></div><p class="small"><b>${n}／${g.target} 人</b>　${g.members.map(m => esc(m.nick) + (m.role?`（${PACES[m.role].short}）`:'')).join('、')}</p>
+    <p class="muted small">${GROUP_PERKS}</p>
+    <div class="row2">${g.status==='open'?`<button class="btn2 b2" data-share-group="${g.code}">傳揪團小卡</button>`:''}${g.mine && n >= 2 && g.status !== 'sent' ? `<button class="btn1 b1" data-send-group="${g.code}">送給顧問確認名額</button>` : ''}</div>
+    <p class="muted small">App 只收「想一起報」的意願；名額、訂金與契約由顧問用永信正式流程處理。</p></div>`;
+}
+function shareGroup(code, trip){
+  const it = myIntro(), txt = introText('invite', it.tags, 0);
+  shareText(`${txt}\n我在揪「${short({name:trip})}」，點這裡加入：${baseUrl()}?join=${code}`, '揪團小卡已複製，貼給旅伴就好');
+}
+function groupSheet(i){
+  const t = TRIPS[i]; if (!t) return;
+  const ms = [...monthsOf(t)].map(m => m + ' 月');
+  openSheet(`<h3>揪「${short(t)}」</h3>
+    <div class="fld"><span>想哪個月出發</span><div class="chips-s" id="gm">${ms.map((m,k)=>`<button class="fc ${k?'':'on'}" data-m="${m}">${m}</button>`).join('')}</div></div>
+    <div class="fld"><span>目標人數</span><div class="seg seg3" id="gt">${[2,3,4].map(n=>`<button data-n="${n}" aria-current="${n===2?'page':'false'}">${n} 人</button>`).join('')}</div></div>
+    <p class="muted small">${GROUP_PERKS}；7 天內有效</p>
+    <button class="btn1 b1" id="go">建立揪團並傳小卡</button><button class="btn2 b2" data-close>取消</button>`, (sh, close) => {
+    let m = ms[0], n = 2;
+    sh.querySelectorAll('[data-m]').forEach(b => b.onclick = () => { m = b.dataset.m; sh.querySelectorAll('[data-m]').forEach(x => x.classList.toggle('on', x === b)); });
+    sh.querySelectorAll('[data-n]').forEach(b => b.onclick = () => { n = +b.dataset.n; sh.querySelectorAll('[data-n]').forEach(x => x.setAttribute('aria-current', x === b ? 'page' : 'false')); });
+    sh.querySelector('#go').onclick = async () => {
+      close();
+      if (S.demo) { S.demoGroup = { ...demoGroup(), trip:t.name, depart:m, target:n, status:'open' }; save(); render(); return toast('示範帳號不會真的傳出；已更新示範揪團'); }
+      if (S.consent !== 'yes') return toast('揪團需要成為會員（會員 → 成為會員）');
+      await ensureCustomer(); const r = await sb.rpc('create_group', { p_trip:t.name, p_depart:m, p_target:n });
+      if (r.error || !r.data) return toast('建立失敗，請稍後再試');
+      S.groups = [r.data, ...S.groups]; save(); track('group_create', { trip:t.name, target:n }); render(); shareGroup(r.data, t.name);
+    };
+  });
+}
+function pollSheet(cands){
+  openSheet(`<h3>發起投票</h3><p class="muted small">選 2–3 團，旅伴按「想去／可以／不行」，不用打字。</p>
+    <div class="chips-s" id="pc">${cands.map((x,k)=>`<button class="fc ${k<3?'on':''}" data-i="${TRIPS.indexOf(x.t)}">${short(x.t)}</button>`).join('')}</div>
+    <button class="btn1 b1" id="go">建立並傳給旅伴</button><button class="btn2 b2" data-close>取消</button>`, (sh, close) => {
+    sh.querySelectorAll('[data-i]').forEach(b => b.onclick = () => { const on = sh.querySelectorAll('[data-i].on').length;
+      if (!b.classList.contains('on') && on >= 3) return toast('最多 3 團'); b.classList.toggle('on'); });
+    sh.querySelector('#go').onclick = async () => {
+      const picks = [...sh.querySelectorAll('[data-i].on')].map(b => TRIPS[+b.dataset.i].name);
+      if (picks.length < 2) return toast('至少選 2 團');
+      close();
+      if (S.demo) { S.demoPoll = { ...demoPoll(), trips:picks, votes:demoPoll().votes.map(v => ({ ...v, votes:picks.map((_, i) => v.votes[i] ?? 1) })) }; save(); render(); return toast('示範帳號不會真的傳出；已更新示範投票'); }
+      if (S.consent !== 'yes') return toast('投票需要成為會員（會員 → 成為會員）');
+      await ensureCustomer(); const r = await sb.rpc('create_poll', { p_trips:picks });
+      if (r.error || !r.data) return toast('建立失敗，請稍後再試');
+      S.polls = [r.data, ...S.polls]; save(); track('poll_create'); render();
+      shareText(`幫我選一下！這幾團你想去哪個？點一下就好：${baseUrl()}?poll=${r.data}`, '投票連結已複製，貼給旅伴就好');
+    };
+  });
+}
+async function processPending(){
+  if (!online() || !S.quizDone) return;
+  let msg = null;
+  if (S.pendJoin) { const r = await sb.rpc('join_group', { p_code:S.pendJoin });
+    if (!r.error && r.data !== 'notfound') { if (!S.groups.includes(S.pendJoin)) S.groups.unshift(S.pendJoin); msg = r.data === 'closed' ? '這個揪團已截止或額滿' : '已加入揪團'; } else msg = '找不到這個揪團';
+    S.pendJoin = null; }
+  if (S.pendPoll) { if (!S.polls.includes(S.pendPoll)) S.polls.unshift(S.pendPoll); S.pendPoll = null; msg = msg || '旅伴邀你投票，選一下吧'; }
+  save(); if (msg) { toast(msg); nav('buddy'); }
+}
+async function fillSocial(el){
+  const pb = el.querySelector('#polls'), gb = el.querySelector('#groups'); if (!pb) return;
+  if (S.demo) { pb.innerHTML = pollCard(demoPoll()); gb.innerHTML = groupCard(demoGroup()); bindSocial(el); return; }
+  if (!online()) { pb.innerHTML = '<p class="muted small">成為會員後就能發起投票與揪團。</p>'; gb.innerHTML = ''; return; }
+  const [ps, gs] = await Promise.all([Promise.all(S.polls.slice(0,3).map(c => sb.rpc('get_poll', { p_code:c }))), Promise.all(S.groups.slice(0,3).map(c => sb.rpc('get_group', { p_code:c })))]);
+  const P = ps.map(r => r.data).filter(Boolean), G = gs.map(r => r.data).filter(Boolean);
+  pb.innerHTML = P.length ? P.map(pollCard).join('') : '<p class="muted small">還沒有投票。決定不了去哪團？發起一個，讓旅伴點一下就好。</p>';
+  gb.innerHTML = G.length ? G.map(groupCard).join('') : '<p class="muted small">還沒有揪團。在上面任一團按「揪這團」就能開始。</p>';
+  bindSocial(el);
+}
+function bindSocial(el){
+  el.querySelectorAll('.poll [data-v]').forEach(b => b.onclick = async () => {
+    const card = b.closest('.poll'), code = card.dataset.code, [i, k] = b.dataset.v.split(':').map(Number);
+    if (S.demo) { const me = demoPoll().votes.find(v => v.me); me.votes[i] = k; save(); return fillSocial(el); }
+    const cur = [...card.querySelectorAll('.vote3')].map(row => { const on = row.querySelector('[aria-pressed="true"]'); return on ? +on.dataset.v.split(':')[1] : 1; });
+    cur[i] = k; await sb.rpc('vote_poll', { p_code:code, p_votes:cur, p_months:(S.prof.card_a || {}).months || [] }); track('poll_vote'); fillSocial(el);
+  });
+  el.querySelectorAll('[data-share-poll]').forEach(b => b.onclick = () => S.demo ? toast('示範帳號不會真的傳出') : shareText(`幫我選一下！這幾團你想去哪個？${baseUrl()}?poll=${b.dataset.sharePoll}`, '投票連結已複製'));
+  el.querySelectorAll('[data-group-from]').forEach(b => b.onclick = () => groupSheet(+b.dataset.groupFrom));
+  el.querySelectorAll('[data-share-group]').forEach(b => b.onclick = () => S.demo ? toast('示範帳號不會真的傳出；正式版會傳出揪團小卡（附自我介紹揪人版）') : shareGroup(b.dataset.shareGroup, b.closest('.group').querySelector('h3').textContent.replace('揪團：','')));
+  el.querySelectorAll('[data-send-group]').forEach(b => b.onclick = async () => {
+    if (S.demo) { demoGroup().status = 'sent'; S.inq.unshift({ trip:demoGroup().trip + '（揪團 2 人）', status:'new', at:new Date().toISOString() }); save(); toast('已送給顧問（示範）'); return fillSocial(el); }
+    const r = await sb.rpc('send_group', { p_code:b.dataset.sendGroup }); if (r.data) { toast('已送給顧問，會用交接代碼聯絡你'); track('group_send'); fillSocial(el); } });
+}
+
+/* ===== 09d 團友牆（示範團） ===== */
+const DEMO_TEAM = { trip:'巴黎精品與甜點 10 天', date:'2027-03-18', leader:'王領隊', meet:'3/18（四）21:30 桃園機場第二航廈・永信旅遊櫃檯（示意）',
+  notes:['行前說明會 3/4（四）晚上 7:30，線上參加，會後寄講義', '巴黎 3 月均溫 6–13°C，早晚冷，請帶一件保暖外套', '自由日推薦清單已放在這頁下方，出發前一週更新'],
+  mates:[{nick:'怡君', role:'rabbit', tags:['跟著導覽走','愛建築藝術','不愛購物站'], text:'白兔一枚，想把精華一次看完，有順路的展覽歡迎揪我！'},
+         {nick:'Ken', role:'alice', tags:['半導覽半自由','愛美食','怕長途拉車'], text:'愛麗絲報到！喜歡吃在地美食，怕長途拉車。'},
+         {nick:'小魚', role:'cat', tags:['慢慢逛','愛咖啡甜點','怕熱'], text:'柴郡貓，慢慢逛、吃甜點喝咖啡，有好吃的甜點店歡迎推薦！'},
+         {nick:'阿哲', role:'hatter', tags:['慢慢逛','愛拍照','要有自由時間'], text:'瘋帽匠一枚，愛拍照、喜歡有自由時間，需要拍照可以找我！'},
+         {nick:'May', role:'queen', tags:['跟著導覽走','愛聽在地故事','喜歡連泊'], text:'紅心皇后，喜歡聽在地故事，請多指教！'}],
+  dist:{cat:4, rabbit:2, alice:2, hatter:2, queen:2} };
+function teamView(){
+  const booked = S.demo;
+  if (!booked) { const el = $h(`<section class="pad">${topbar('我的團', {home:true})}
+      <div class="empty-card"><div class="ec-ic">${ic('star')}</div><h2>報名成功後自動出現</h2><p>出發倒數、集合資訊、領隊公告，還有同團旅人的角色卡，都會在這裡。</p>
+      <a class="btn2 b2" href="#/me/intro">先準備我的自我介紹</a></div></section>`); bindBack(el, 'buddy'); return el; }
+  const T = DEMO_TEAM, it = myIntro(), days = Math.max(0, Math.ceil((new Date(T.date) - Date.now()) / 864e5));
+  const all = [{ nick:S.nickname || '我', role:state.view, tags:it.tags, text:it.text, me:true }, ...T.mates];
+  const total = Object.values(T.dist).reduce((a, b) => a + b, 0);
+  const el = $h(`<section class="pad team">${topbar('我的團', {home:true})}
+    <div class="team-hero b3"><span>${T.trip}</span><b>${days} 天後出發</b><small>${T.date.slice(5).replace('-','/')} 出發・領隊 ${T.leader}・共 ${total} 位旅人（示範團）</small></div>
+    <div class="box"><h3>集合資訊</h3><p class="small">${T.meet}</p></div>
+    <div class="box"><h3>領隊公告</h3><ul class="plain small">${T.notes.map(n=>`<li>${n}</li>`).join('')}</ul></div>
+    <div class="box"><div class="sec-h"><h3>這團的旅人組成</h3><span class="muted small">領隊也看得到，用來安排自由時間</span></div>
+      <div class="dist">${ROLE_ORDER.map(k=>`<div><span>${PACES[k].short}</span><div class="prog"><i style="width:${(T.dist[k]||0)/total*100}%"></i></div><b>${T.dist[k]||0}</b></div>`).join('')}</div></div>
+    <div class="sec-h"><h2>團友角色卡</h2><a href="#/me/intro">編輯我的</a></div>
+    <div class="vis-row"><span class="small">我的角色卡給誰看</span><div class="seg seg3" id="vis">${[['team','只給領隊'],['all','全團'],['none','不公開']].map(([k,l])=>`<button data-vis="${k}" aria-current="${it.vis===k?'page':'false'}">${l}</button>`).join('')}</div></div>
+    <div class="mates">${all.map(m => mateCard(m, { metoo:true, vis:it.vis })).join('')}</div>
+    <p class="muted small">只顯示設成「全團」的團友（${T.mates.length}/${total - 1} 位）；點對方的標籤表示「我也是」，相同的標籤會配成小隊。沒有聊天室，想多聊請私下交換 LINE。</p>
+    <div id="squad"></div></section>`);
+  bindBack(el, 'buddy');
+  const squad = () => { const mine = new Set(it.tags), hit = {};
+    S.metoo.forEach(k => { const [n, t] = k.split('|'); if (mine.has(t)) (hit[t] = hit[t] || []).push(n); });
+    el.querySelector('#squad').innerHTML = Object.keys(hit).length ? `<div class="box squad">${Object.entries(hit).map(([t, ns]) => `<p>你和 <b>${ns.map(esc).join('、')}</b> 是「${t}」小隊</p>`).join('')}</div>` : ''; };
+  el.querySelectorAll('[data-mt]').forEach(b => b.onclick = () => { const k = b.dataset.mt; S.metoo = S.metoo.includes(k) ? S.metoo.filter(x => x !== k) : [...S.metoo, k]; save(); b.classList.toggle('on'); squad(); });
+  el.querySelectorAll('#vis [data-vis]').forEach(b => b.onclick = () => { S.intro = { ...myIntro(), vis:b.dataset.vis }; save(); pushProfile(); render(); toast('已更新公開範圍'); });
+  squad(); return el;
 }
 
 /* ===== 10 找顧問 ===== */
@@ -727,7 +1001,7 @@ function passView(){
   const el = $h(`<section class="pad">
     ${head('護照', {big:true, back:'auto'})}
     <div class="passport b3"><div class="pp-top"><span>歐洲旅人護照・數位版</span><span class="stamp">${TIERS[lv][1]}</span></div>
-      <div class="pp-id"><div class="pp-av">${av(PACES[avatarKey()].ch, TIERS[lv][0])}</div><div><b>${P.name}</b><span>${P.alias}・${TIERS[lv][1]}等級</span>${S.nickname?`<span>${esc(S.nickname)}</span>`:''}</div></div>
+      <div class="pp-id"><div class="pp-av-wrap"><div class="pp-av">${av(PACES[avatarKey()].ch, TIERS[lv][0])}</div>${S.photo&&S.photoOn?`<img class="pp-photo" src="${S.photo}" alt="${esc(S.nickname)}（示意照片）">`:''}</div><div><b>${P.name}</b><span>${P.alias}・${TIERS[lv][1]}等級</span>${S.nickname?`<span>${esc(S.nickname)}</span>`:''}</div></div>
       <div class="pp-stats"><div><b>${trips}</b><span>出團次數</span></div><a href="#/pass/points"><b>${points()}</b><span>旅人點數 ›</span></a><a href="#/me"><b>${completion()}%</b><span>檔案完成</span></a></div></div>
     ${next?`<p class="next-lv">下一級：<b>${next[0]}</b>　再出團 ${need} 次</p>`:''}
     <div class="sec-h"><h2>等級禮遇</h2><span class="muted small">數位護照，不印實體</span></div>
@@ -745,7 +1019,7 @@ function pointsView(){
     <div class="pts-card b3"><span>目前點數</span><b>${points()} 點</b><small>報名時可折抵 ${points()} 元・2027/12/31 前有效</small></div>
     ${pending()?`<p class="pend">待入帳 ${pending()} 點：出團回國後入帳</p>`:''}
     <h2 class="h2">紀錄</h2>
-    <div class="ledger">${S.ledger.length ? S.ledger.map(x => `<div class="lg"><div><b>${esc(x.label)}</b><span>${fmtDate(x.at)}・${x.status==='pending'?'待出團・回國後入帳':x.reason.startsWith('card')?'旅人檔案':x.reason.startsWith('buddy')?'旅伴':'其他'}</span></div><em class="${x.status}">+${x.points}</em></div>`).join('')
+    <div class="ledger">${S.ledger.length ? S.ledger.map(x => `<div class="lg"><div><b>${esc(x.label)}</b><span>${fmtDate(x.at)}・${x.status==='pending'?'待出團・回國後入帳':x.reason.startsWith('card')?'旅人檔案':x.reason.startsWith('buddy')?'旅伴':x.reason.startsWith('group')?'揪團':'其他'}</span></div><em class="${x.status}">+${x.points}</em></div>`).join('')
       : '<div class="empty">還沒有點數紀錄。完成一張旅人檔案卡就能拿到第一筆點數。</div>'}</div>
     <h2 class="h2">怎麼賺點數</h2>
     <div class="earn">${EARN.map(([a,b])=>`<div><b>${a}</b><span>${b}</span></div>`).join('')}</div>
@@ -787,7 +1061,7 @@ function meView(){
   const el = $h(`<section class="pad">
     ${head('會員', {big:true, back:'auto', right:gear})}
     <div class="mcard">
-      <div class="mc-top">${flip?`<button class="mc-av flip" aria-label="頭像：照片與${P.short}頭像輪流顯示，點一下翻面"><span class="flip-in"><span class="face front"><img src="${S.photo}" alt="${esc(S.nickname)}（示意照片）"></span><span class="face back">${av(P.ch, T[0])}</span></span></button>`:`<div class="mc-av">${av(P.ch, T[0])}</div>`}
+      <div class="mc-top">${avatarHTML('mc-av')}
         <div class="mc-id"><b>${esc(S.nickname || '旅人')}</b><span>${T[1]}會員・${PACES[state.view].short}</span>${tag}</div>
         <a class="icon-btn" href="#/me/edit" aria-label="編輯個人資料">${ic('pen')}</a></div>
       <div class="mc-rows">
@@ -807,13 +1081,12 @@ function meView(){
         return `<a class="c5 op ${ok?'ok':''}" href="#/me/card/${card.k}/${first}"><div><b>${card.t}</b><span>${card.use}</span></div><em>${ok?'已完成':n?`${n}/${card.qs.length}・+${card.pts}`:`+${card.pts} 點`}</em></a>`; }).join('')}</div>
       <p class="muted small">每一題都寫了用途；不放進一分鐘測驗，想到再補就好。</p></details>
     <div class="menu">
+      <a class="op" href="#/me/intro">${ic('chat')}<span>我的自我介紹</span><em>${S.intro?({team:'只給領隊',all:'全團公開',none:'不公開'}[S.intro.vis]):'用作答自動產生'}</em>${ic('chev','end')}</a>
+      <a class="op" href="#/team">${ic('star')}<span>我的團</span>${S.demo?'<em>巴黎 3/18 團</em>':''}${ic('chev','end')}</a>
       <a class="op" href="#/buddy">${ic('buddy')}<span>旅伴</span>${S.buddies.length?`<em>${S.buddies.length} 位</em>`:''}${ic('chev','end')}</a>
       <a class="op" href="#/inbox">${ic('bell')}<span>通知</span>${unread()?`<em>${unread()} 則未讀</em>`:''}${ic('chev','end')}</a>
       <a class="op" href="#/me/settings">${ic('gear')}<span>設定與隱私</span>${ic('chev','end')}</a></div>
   </section>`);
-  const fl = el.querySelector('.mc-av.flip');
-  if (fl) { const turn = () => fl.classList.toggle('flipped'); fl.onclick = () => { turn(); clearInterval(flipTimer); flipTimer = setInterval(turn, 4000); };
-    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) flipTimer = setInterval(turn, 4000); }
   const cp = el.querySelector('#copy'); if (cp) cp.onclick = async () => { try { await navigator.clipboard.writeText(el.querySelector('#code').textContent); toast('已複製交接代碼'); } catch(e) { toast('請長按代碼複製'); } };
   el.querySelectorAll('#optin,#optin2').forEach(b => b.onclick = optIn);
   if (ms === 'member' && !(S.me && S.me.code)) ensureCustomer().then(() => { const p = el.querySelector('#code'); if (p && S.me) p.textContent = S.me.code; });
@@ -826,7 +1099,7 @@ function editView(){
   let av0 = avatarKey(), reg = S.region_tw || null, b0 = bm;
   const el = $h(`<section class="pad">${topbar('編輯個人資料')}
     <label class="fld"><span>暱稱</span><input id="nn" maxlength="12" value="${esc(S.nickname)}" placeholder="例如：雅婷"><small>旅伴和顧問會看到；不用填真實姓名</small></label>
-    ${S.photo?`<label class="sw"><span>照片與角色頭像輪流顯示<small>每 4 秒翻面一次；關掉就只顯示下面選的角色頭像</small></span><input type="checkbox" id="pon" ${S.photoOn?'checked':''}><i></i></label>`:''}
+    ${S.photo?`<div class="photo-row"><img src="${S.photo}" alt="${esc(S.nickname)}（示意照片）"><label class="sw"><span>照片與角色頭像輪流顯示<small>每 4 秒翻面一次；關掉就只顯示下面選的角色頭像。示範帳號照片為示意，非本人</small></span><input type="checkbox" id="pon" ${S.photoOn?'checked':''}><i></i></label></div>`:''}
     <div class="fld"><span>頭像</span><div class="avs">${ROLE_ORDER.map(k=>`<button class="avo op" data-av="${k}" aria-pressed="${k===av0}" aria-label="${PACES[k].short}">${av(PACES[k].ch, T[0])}<i>${PACES[k].short}</i></button>`).join('')}</div>
       <small>只能選角色頭像，不上傳照片；材質會跟著護照等級（目前：${T[1]}）變精緻</small></div>
     <label class="fld"><span>生日月份</span><select id="bm"><option value="">未填</option>${MONTHS.map((m,i)=>`<option value="${i}" ${b0===i?'selected':''}>${m}</option>`).join('')}</select>
