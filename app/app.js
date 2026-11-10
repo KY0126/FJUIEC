@@ -57,7 +57,8 @@ function demoLedger(){ return [
 /* ===== 狀態 ===== */
 const LS = 'ys_app_v2';
 const S = Object.assign({consent:null, demo:false, ans:{}, pace:null, view:null, prof:{}, favs:[], cmp:[], quizDone:false,
-  notes:[], ledger:[], buddies:[], nickname:'', lineSync:true, me:null, inv:null, flt:null, region:null},
+  notes:[], ledger:[], buddies:[], nickname:'', lineSync:true, me:null, inv:null, flt:null, region:null,
+  inq:[], avatar:null, region_tw:null, prefs:{}, fltDefault:null},
   (()=>{try{return JSON.parse(localStorage.getItem(LS)||'{}')}catch(e){return {}}})());
 S.me = null; state.ans = S.ans || {}; if (S.pace) { state.pace = S.pace; state.view = S.view || S.pace; }
 const invParam = new URLSearchParams(location.search).get('inv'); if (invParam) { S.inv = invParam.toUpperCase().slice(0,6); }
@@ -87,6 +88,9 @@ const I = {
   map:'<path d="M9 4l-6 2v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/>',
   chat:'<path d="M4 5h16v11H9l-5 4z"/>', chev:'<path d="M9 5l7 7-7 7"/>', plus:'<path d="M12 5v14M5 12h14"/>',
   share:'<path d="M12 4v11"/><path d="M8 8l4-4 4 4"/><path d="M5 13v6h14v-6"/>', gift:'<rect x="4" y="9" width="16" height="11" rx="1.5"/><path d="M4 13h16M12 9v11"/><path d="M12 9c-2-4-6-3-5 0M12 9c2-4 6-3 5 0"/>',
+  gear:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/>',
+  pen:'<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/>',
+  shield:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
   star:'<path d="M12 4l2.4 5 5.6.6-4.2 3.8 1.2 5.6L12 16.2 7 19l1.2-5.6L4 9.6 9.6 9z"/>'
 };
 const ic = (k, cls='') => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${I[k]}</svg>`;
@@ -108,12 +112,13 @@ document.addEventListener('click', e => { const a = e.target.closest('a[href^="#
 /* 上一頁：App 內有上一頁就回去；從 QR、連結或通知直接打開的，回到這頁的上層，不會跳出 App */
 function parentOf(p){ const r = p.split('/');
   if (r[0] === 'trip' || r[0] === 'compare') return 'explore';
+  if (r[0] === 'me' && r[1] === 'legal') return 'me/settings';
   if (['explore','pass','me','inbox'].includes(r[0]) && r[1]) return r[0];
   if (!r[0] || r[0] === 'home') return null;
   return 'home'; }
 function back(fallback){ dir = 'back'; if (curIdx > 0) history.back(); else nav(fallback || parentOf(route().join('/')) || 'home', true); }
-const GATED = new Set(['buddy','pass','me','compare','advisor']);
-const TABS = [['home','首頁'],['explore','探索'],['buddy','旅伴'],['pass','護照'],['me','我的']];
+const GATED = new Set(['buddy','pass','compare','advisor']);
+const TABS = [['home','首頁'],['explore','探索'],['buddy','旅伴'],['pass','護照'],['me','會員']];
 const TAB_ROOTS = new Set(['home','explore','buddy','pass','me']);
 const NO_TOP = new Set(['quiz','welcome','result']);
 
@@ -122,14 +127,14 @@ function render(){
   if (GATED.has(r[0]) && !S.quizDone) { S.after = r.join('/'); save(); return nav('welcome', true); }
   const views = {home:()=>S.quizDone?homeView():homeNewView(), welcome:welcomeView, quiz:quizView, result:resultView,
     explore:()=>r[1]==='map'?mapView():exploreView(), trip:tripView, compare:compareView, buddy:buddyView, pass:()=>r[1]==='points'?pointsView():passView(),
-    me:()=>r[1]==='card'?cardQView(r[2], +r[3]||0):meView(), inbox:inboxView, advisor:advisorView};
+    me:()=>({card:()=>cardQView(r[2], +r[3]||0), edit:editView, settings:settingsView, favs:favsView, inquiries:inquiriesView, legal:()=>legalView(r[2])}[r[1]] || meView)(), inbox:inboxView, advisor:advisorView};
   onScroll = null;
   const v = (views[r[0]] || views.home)(), goingBack = dir === 'back';
   v.classList.add('screen', goingBack ? 'in-back' : 'in-fwd'); dir = 'fwd';
   v.querySelectorAll('[data-back]').forEach(b => { if (!b.onclick) b.onclick = () => back(); });
   v.querySelectorAll('[data-top]').forEach(b => { if (!b.onclick) b.onclick = toTop; });
   app.replaceChildren(v);
-  const tabbed = TAB_ROOTS.has(r[0]) && !(r[0]==='pass' && r[1]==='points') && !(r[0]==='me' && r[1]==='card');
+  const tabbed = TAB_ROOTS.has(r[0]) && !((r[0]==='pass' || r[0]==='me') && r[1]);
   drawTabs(tabbed ? r[0] : null);
   document.body.classList.toggle('has-tabs', tabbed);
   document.body.classList.toggle('has-cmp', !!v.querySelector('.cmp-bar'));
@@ -240,6 +245,10 @@ async function loadRemote(){
   if (l.data && l.data.length) { const reasons = new Set(l.data.map(x=>x.reason)); S.ledger = [...l.data.map(x=>({reason:x.reason,label:x.label,points:x.points,status:x.status,at:x.created_at})), ...S.ledger.filter(x=>!reasons.has(x.reason))]; }
   if (me.role_key && !state.pace) { state.pace = me.role_key; state.view = me.role_key; state.ans = me.answers || {}; S.quizDone = true; }
   if (me.nickname) S.nickname = me.nickname;
+  if (me.avatar_key) S.avatar = me.avatar_key; if (me.region) S.region_tw = me.region;
+  if (me.prefs && Object.keys(me.prefs).length) { const { line, filters, ...rest } = me.prefs; S.prefs = rest; if (line !== undefined) S.lineSync = line; if (filters) S.fltDefault = filters; }
+  const iq = await sb.from('inquiries').select('trip_name,status,created_at').eq('customer_id', me.id).order('created_at', {ascending:false});
+  if (iq.data) S.inq = iq.data.map(x => ({ trip:x.trip_name, status:x.status, at:x.created_at }));
   await loadBuddies();
   save();
   sb.channel('notif-' + me.id).on('postgres_changes', { event:'INSERT', schema:'public', table:'notifications', filter:`customer_id=eq.${me.id}` },
@@ -393,7 +402,7 @@ function welcomeView(){
   el.querySelector('#no').onclick = () => start('no');
   el.querySelector('#more').onclick = () => openSheet(`<h3>我們會記錄什麼</h3><ul class="plain">
     <li>測驗答案與旅人檔案：用來推薦行程，讓顧問接手時不用重問。</li><li>不需要姓名、電話；用 6 碼交接代碼辨識你。</li>
-    <li>隨時可以在「我的」刪除全部資料。</li><li>課程原型（輔大創新創業社），行程與價格為示意。</li></ul><button class="btn2 b2" data-close>知道了</button>`);
+    <li>隨時可以在「會員 → 設定」刪除全部資料。</li><li>課程原型（輔大創新創業社），行程與價格為示意。</li></ul><button class="btn2 b2" data-close>知道了</button>`);
   el.querySelector('#member').onclick = () => openSheet(`<h3>我已經是永信旅客</h3>
     <p>正式版會用 LINE 登入，自動帶入你的出團紀錄與護照等級。</p>
     <p class="muted">原型先用示範帳號體驗：主要客群「林雅婷」，已做完測驗、填了 2 張旅人檔案，也有一位旅伴。示範帳號只存在這支手機，不會寫入資料庫。</p>
@@ -403,7 +412,8 @@ function welcomeView(){
 }
 function enterDemo(){
   Object.assign(S, { consent:'demo', demo:true, prof:JSON.parse(JSON.stringify(DEMO.prof)), favs:[...DEMO.favs], cmp:[], quizDone:true,
-    notes:demoNotes(), ledger:demoLedger(), buddies:[{...DEMO.buddy, buddy_id:'demo', seen:false}], nickname:DEMO.name, flt:null, region:null });
+    notes:demoNotes(), ledger:demoLedger(), buddies:[{...DEMO.buddy, buddy_id:'demo', seen:false}], nickname:DEMO.name, flt:null, region:null,
+    avatar:'cat', region_tw:'北部', prefs:{}, fltDefault:null, inq:[{trip:TRIPS[tripId('巴黎精品與甜點')].name, status:'replied', at:daysAgo(.3)}] });
   state.ans = JSON.parse(JSON.stringify(DEMO.ans)); state.pace = topPace(scores()); state.view = state.pace; save();
   toast(`已進入示範帳號：${DEMO.name}`); nav('home', true);
 }
@@ -453,7 +463,7 @@ function resultView(){
     <button class="btn1 b1" id="go">看我的 3 團推薦</button>
     <button class="btn2 b2" id="share">分享角色卡</button>
     <a class="txt-link" href="#/buddy">邀請旅伴一起測</a>
-    ${S.inv && S.consent!=='yes' ? '<p class="inv-note">試玩模式不會和邀請你的旅伴配對；到「我的」同意儲存後就會配對。</p>' : ''}
+    ${S.inv && S.consent!=='yes' ? '<p class="inv-note">試玩模式不會和邀請你的旅伴配對；到「會員」成為會員（同意儲存）後就會配對。</p>' : ''}
   </section>`);
   el.querySelector('#go').onclick = () => { const a = S.after; S.after = null; save(); nav(a || 'home', true); };
   el.querySelector('#share').onclick = () => { track('share', {what:'role'}); shareText(`我是「${P.name}」（${P.alias}）！一分鐘測你是哪一種歐洲旅人：${baseUrl()}`); };
@@ -467,7 +477,7 @@ function homeView(){
     <div class="home-h"><div><p>${greet()}${S.nickname?`，${esc(S.nickname)}`:''}</p><h1>${P.name}</h1></div>
       <a class="icon-btn bell" href="#/inbox" aria-label="通知">${ic('bell')}${unread()?`<i class="badge">${unread()}</i>`:''}</a></div>
     ${S.demo?'<p class="demo-tag">示範帳號・不會存檔</p>':''}
-    <a class="pass-card b3" href="#/pass"><div class="pc-av">${av(P.ch, T[0])}</div>
+    <a class="pass-card b3" href="#/pass"><div class="pc-av">${av(PACES[avatarKey()].ch, T[0])}</div>
       <div><b>${P.short}・${T[1]}等級</b><span>${points()} 點・可折抵 ${points()} 元</span></div>${ic('chev','end')}</a>
     ${c<100?`<a class="prof-row op" href="#/me"><div><b>旅人檔案 ${c}%</b><span>補完再拿 ${cardPtsLeft()} 點</span></div><div class="prog"><i style="width:${c}%"></i></div></a>`:''}
     <div class="sec-h"><h2>為你推薦</h2><a href="#/explore">全部</a></div>
@@ -484,7 +494,7 @@ function homeView(){
 
 /* ===== 05 探索：推薦清單 ===== */
 const FLT = [['noshop','無購物站'],['cool','避開炎熱'],['walk','走路不累'],['short','10 天內'],['stay','連泊不換飯店'],['budget',null],['free','自由時間多']];
-function defaultFlt(){ const B = S.prof.card_b || {}, f = []; if (B.shop === 0) f.push('noshop'); if (B.hot === 0) f.push('cool'); if (B.walk === 0) f.push('walk'); return f; }
+function defaultFlt(){ if (S.fltDefault) return [...S.fltDefault]; const B = S.prof.card_b || {}, f = []; if (B.shop === 0) f.push('noshop'); if (B.hot === 0) f.push('cool'); if (B.walk === 0) f.push('walk'); return f; }
 function exploreView(){
   if (!S.flt) S.flt = S.quizDone ? defaultFlt() : [];
   const defs = filterDefs(state.view || 'alice'), byId = Object.fromEntries(defs.map(d => [d.id, d]));
@@ -684,7 +694,8 @@ function advisorView(){
     body.querySelector('[data-back2]').onclick = () => back('home'); return el; }
   ensureCustomer().then(async me => {
     if (!me) { body.innerHTML = `<div class="empty-card"><h2>目前連不上資料庫</h2><p>請稍後再試，或直接開 LINE 詢問。</p></div>`; return; }
-    if (t) { await sb.from('inquiries').insert({ customer_id:me.id, trip_name:t.name }); track('inquiry', { trip:t.name }); }
+    if (t) { await sb.from('inquiries').insert({ customer_id:me.id, trip_name:t.name }); track('inquiry', { trip:t.name });
+      if (!S.inq.some(q => q.trip === t.name)) { S.inq.unshift({ trip:t.name, status:'new', at:new Date().toISOString() }); save(); } }
     draw(me.code);
   });
   return el;
@@ -699,7 +710,7 @@ function inboxView(){
     <div class="notes">${list.length ? list.map(n => `<a class="note op ${n.read?'':'unread'}" href="${n.link||'#/home'}" data-id="${n.id}">
       <span class="n-ic k-${n.kind}">${ic(KIND[n.kind][1])}</span><div><div class="n-h"><b>${esc(n.title)}</b><span>${fmtDate(n.at)}</span></div><p>${esc(n.body||'')}</p></div></a>`).join('')
       : '<div class="empty">還沒有通知。收藏行程、邀請旅伴或找顧問後，消息會出現在這裡。</div>'}</div>
-    <p class="muted small center">通知也會同步到永信 LINE 官方帳號；可在「我的」調整</p></section>`);
+    <p class="muted small center">通知也會同步到永信 LINE 官方帳號；可在「會員 → 設定」調整</p></section>`);
   bindBack(el, 'home');
   const mark = async ids => { const db = S.notes.filter(n => ids.includes(n.id) && n.db && !n.read).map(n => n.dbid);
     S.notes.forEach(n => { if (ids.includes(n.id)) n.read = true; }); save();
@@ -716,7 +727,7 @@ function passView(){
   const el = $h(`<section class="pad">
     ${head('護照', {big:true, back:'auto'})}
     <div class="passport b3"><div class="pp-top"><span>歐洲旅人護照・數位版</span><span class="stamp">${TIERS[lv][1]}</span></div>
-      <div class="pp-id"><div class="pp-av">${av(P.ch, TIERS[lv][0])}</div><div><b>${P.name}</b><span>${P.alias}・${TIERS[lv][1]}等級</span>${S.nickname?`<span>${esc(S.nickname)}</span>`:''}</div></div>
+      <div class="pp-id"><div class="pp-av">${av(PACES[avatarKey()].ch, TIERS[lv][0])}</div><div><b>${P.name}</b><span>${P.alias}・${TIERS[lv][1]}等級</span>${S.nickname?`<span>${esc(S.nickname)}</span>`:''}</div></div>
       <div class="pp-stats"><div><b>${trips}</b><span>出團次數</span></div><a href="#/pass/points"><b>${points()}</b><span>旅人點數 ›</span></a><a href="#/me"><b>${completion()}%</b><span>檔案完成</span></a></div></div>
     ${next?`<p class="next-lv">下一級：<b>${next[0]}</b>　再出團 ${need} 次</p>`:''}
     <div class="sec-h"><h2>等級禮遇</h2><span class="muted small">數位護照，不印實體</span></div>
@@ -743,38 +754,230 @@ function pointsView(){
   return el;
 }
 
-/* ===== 14 我的：旅人檔案、交接代碼、設定 ===== */
+/* ===== 14 會員：個人卡、收藏、詢問、旅人檔案；齒輪進設定 ===== */
+const REGIONS_TW = ['北部','中部','南部','東部','離島'];
+const INQ_STATUS = {new:'待回覆', replied:'已回覆', quoted:'已報價', won:'已報名', lost:'已結案'};
+const APP_VER = 'v2.3（2026/11/10）';
+const avatarKey = () => S.avatar || state.view || 'alice';
+const birthMonth = () => { const v = (S.prof.card_e || {}).birthMonth; return v === undefined ? null : v; };
+const memberState = () => S.demo ? 'demo' : !S.quizDone ? 'guest' : S.consent === 'yes' ? 'member' : 'trial';
+async function pushMember(fields){
+  if (!online()) return; const me = await ensureCustomer(); if (!me) return;
+  const r = await sb.from('customers').update(fields).eq('id', me.id).select().single();
+  if (r.error) toast('儲存失敗：' + r.error.message); else S.me = r.data;
+}
+async function optIn(){ S.consent = 'yes'; save(); await ensureCustomer(); await pushQuiz();
+  await pushMember({ nickname:S.nickname || null, avatar_key:S.avatar || null, region:S.region_tw || null, prefs:S.prefs || {} }); render(); toast('已成為會員'); }
 function meView(){
-  const c = completion();
+  const ms = memberState(), gear = `<a class="icon-btn" href="#/me/settings" aria-label="設定">${ic('gear')}</a>`;
+  if (ms === 'guest') {
+    const el = $h(`<section class="pad">${head('會員', {big:true, back:'auto', right:gear})}
+      <div class="join-card b3"><b>做完一分鐘測驗，就是啟程會員</b><span>不用填姓名電話，也不用下載</span>
+        <ul>${['拿到 3 團剛好適合你的行程','完成旅人檔案領點數，報名可折抵','生日月小禮與旅伴共同推薦','顧問用交接代碼接手，不用重講需求'].map(x=>`<li>${x}</li>`).join('')}</ul>
+        <a class="btn-fake" href="#/welcome">開始測驗，成為會員</a></div>
+      <button class="btn2 b2" id="demo">我已經是永信旅客（示範帳號）</button>
+      <a class="link-row op" href="#/me/legal/privacy">${ic('shield')}<span>我們怎麼使用你的資料</span>${ic('chev','end')}</a></section>`);
+    el.querySelector('#demo').onclick = enterDemo; return el;
+  }
+  const P = PACES[avatarKey()], T = TIERS[tierIdx()], c = completion(), bm = birthMonth();
+  const inqN = (S.inq || []).length, favN = S.favs.length;
+  const tag = {demo:'<i class="mtag">示範帳號・只存在這支手機</i>', trial:'<i class="mtag warn">試玩中・尚未成為會員</i>', member:''}[ms];
+  const code = S.demo ? 'YT0126' : ms === 'member' ? (S.me && S.me.code || '…') : null;
   const el = $h(`<section class="pad">
-    ${head('我的', {big:true, back:'auto'})}
-    ${S.demo?`<div class="demo-box"><b>示範帳號：${DEMO.name}</b><span>所有操作只存在這支手機，不會寫入資料庫。</span><button class="btn2 b2" id="exitDemo">離開示範帳號</button></div>`:''}
-    <div class="box"><div class="sec-h"><h2>旅人檔案</h2><span class="muted small">${c}%・已得 ${CARDS.filter(doneCard).reduce((s,x)=>s+x.pts,0)} 點</span></div>
-      <div class="prog"><i style="width:${c}%"></i></div>
+    ${head('會員', {big:true, back:'auto', right:gear})}
+    <div class="mcard">
+      <div class="mc-top"><div class="mc-av">${av(P.ch, T[0])}</div>
+        <div class="mc-id"><b>${esc(S.nickname || '旅人')}</b><span>${T[1]}會員・${PACES[state.view].short}</span>${tag}</div>
+        <a class="icon-btn" href="#/me/edit" aria-label="編輯個人資料">${ic('pen')}</a></div>
+      <div class="mc-rows">
+        <div><span>生日月份</span><b>${bm===null?'<a href="#/me/edit">未填，填了領生日月禮 +50 點</a>':MONTHS[bm]}</b></div>
+        <div><span>交接代碼</span><b>${code?`<span class="code-s" id="code">${code}</span><button class="txt-btn" id="copy">複製</button>`:'<button class="txt-btn" id="optin">成為會員後產生</button>'}</b></div>
+      </div>
+      ${ms==='trial'?'<button class="btn1 b1" id="optin2">成為會員（同意儲存）</button>':''}
+    </div>
+    <div class="mstats">
+      <a class="op" href="#/pass/points"><b>${points()}</b><span>點數</span></a>
+      <a class="op" href="#/me/favs"><b>${favN}</b><span>收藏</span></a>
+      <a class="op" href="#/me/inquiries"><b>${inqN}</b><span>詢問</span></a></div>
+    <details class="box prof-box" ${c<100?'open':''}><summary><div class="sec-h"><h2>旅人檔案</h2><span class="muted small">${c}%・已得 ${CARDS.filter(doneCard).reduce((s,x)=>s+x.pts,0)} 點</span></div>
+      <div class="prog"><i style="width:${c}%"></i></div></summary>
       <div class="cards5">${CARDS.map(card => { const ok = doneCard(card), v = S.prof[card.k] || {}, n = card.qs.filter(q => v[q.id] !== undefined && !(Array.isArray(v[q.id]) && !v[q.id].length)).length;
         const first = ok ? 0 : Math.max(0, card.qs.findIndex(q => v[q.id] === undefined || (Array.isArray(v[q.id]) && !v[q.id].length)));
         return `<a class="c5 op ${ok?'ok':''}" href="#/me/card/${card.k}/${first}"><div><b>${card.t}</b><span>${card.use}</span></div><em>${ok?'已完成':n?`${n}/${card.qs.length}・+${card.pts}`:`+${card.pts} 點`}</em></a>`; }).join('')}</div>
-      <p class="muted small">每一題都寫了用途；不放進一分鐘測驗，想到再補就好。${S.consent==='no'?'目前是試玩模式，不會存到資料庫。':''}</p></div>
-    <div class="box"><h2>交接代碼</h2>
-      ${S.demo?'<p class="code">YT0126</p><p class="muted small">示範代碼</p>':S.consent==='yes'?`<p class="code" id="code">${S.me&&S.me.code||'…'}</p><p class="muted small">把代碼告訴顧問，顧問就能看到你的角色、檔案與收藏。</p>`:'<p class="muted small">試玩模式沒有交接代碼。</p><button class="btn2 b2" id="optin">同意儲存，產生代碼</button>'}</div>
-    <div class="box"><h2>通知</h2><label class="sw"><span>同步到永信 LINE 官方帳號</span><input type="checkbox" id="ls" ${S.lineSync?'checked':''}><i></i></label></div>
-    <div class="box"><h2>資料與設定</h2>
-      <button class="btn2 b2" id="redo">重新做測驗</button>
-      ${S.demo?'':'<button class="danger" id="del">刪除我的全部資料</button><p class="muted small">刪除後，測驗、檔案、收藏、點數與詢問紀錄都會清除，無法復原。</p>'}
-      <p class="muted small">課程原型（輔大創新創業社），行程與價格為示意。</p></div>
+      <p class="muted small">每一題都寫了用途；不放進一分鐘測驗，想到再補就好。</p></details>
+    <div class="menu">
+      <a class="op" href="#/buddy">${ic('buddy')}<span>旅伴</span>${S.buddies.length?`<em>${S.buddies.length} 位</em>`:''}${ic('chev','end')}</a>
+      <a class="op" href="#/inbox">${ic('bell')}<span>通知</span>${unread()?`<em>${unread()} 則未讀</em>`:''}${ic('chev','end')}</a>
+      <a class="op" href="#/me/settings">${ic('gear')}<span>設定與隱私</span>${ic('chev','end')}</a></div>
   </section>`);
-  const ex = el.querySelector('#exitDemo'); if (ex) ex.onclick = () => { try { localStorage.removeItem(LS); } catch(e) {} location.href = baseUrl() + '#/home'; location.reload(); };
-  const o = el.querySelector('#optin'); if (o) o.onclick = async () => { S.consent = 'yes'; save(); await ensureCustomer(); await pushQuiz(); render(); toast('已同意儲存'); };
-  el.querySelector('#ls').onchange = e => { S.lineSync = e.target.checked; save(); toast(S.lineSync ? '會同步到 LINE' : '只在 App 裡通知'); };
-  el.querySelector('#redo').onclick = () => { state.ans = {}; S.quizDone = false; S.flt = null; save(); nav('quiz/0'); };
-  const del = el.querySelector('#del'); if (del) del.onclick = async () => {
-    if (!del.classList.contains('armed')) { del.classList.add('armed'); del.textContent = '再按一次，確定刪除'; return; }
-    if (online()) { const me = await ensureCustomer(); if (me) await sb.from('customers').delete().eq('id', me.id); await sb.auth.signOut(); }
-    try { localStorage.removeItem(LS); } catch(e) {}
-    location.href = baseUrl() + '#/home'; location.reload();
-  };
-  if (S.consent === 'yes' && !S.demo && !(S.me && S.me.code)) ensureCustomer().then(() => { const p = el.querySelector('#code'); if (p && S.me) p.textContent = S.me.code; });
+  const cp = el.querySelector('#copy'); if (cp) cp.onclick = async () => { try { await navigator.clipboard.writeText(el.querySelector('#code').textContent); toast('已複製交接代碼'); } catch(e) { toast('請長按代碼複製'); } };
+  el.querySelectorAll('#optin,#optin2').forEach(b => b.onclick = optIn);
+  if (ms === 'member' && !(S.me && S.me.code)) ensureCustomer().then(() => { const p = el.querySelector('#code'); if (p && S.me) p.textContent = S.me.code; });
   return el;
+}
+
+/* ----- 編輯個人資料 ----- */
+function editView(){
+  const T = TIERS[tierIdx()], bm = birthMonth();
+  let av0 = avatarKey(), reg = S.region_tw || null, b0 = bm;
+  const el = $h(`<section class="pad">${topbar('編輯個人資料')}
+    <label class="fld"><span>暱稱</span><input id="nn" maxlength="12" value="${esc(S.nickname)}" placeholder="例如：雅婷"><small>旅伴和顧問會看到；不用填真實姓名</small></label>
+    <div class="fld"><span>頭像</span><div class="avs">${ROLE_ORDER.map(k=>`<button class="avo op" data-av="${k}" aria-pressed="${k===av0}" aria-label="${PACES[k].short}">${av(PACES[k].ch, T[0])}<i>${PACES[k].short}</i></button>`).join('')}</div>
+      <small>只能選角色頭像，不上傳照片；材質會跟著護照等級（目前：${T[1]}）變精緻</small></div>
+    <label class="fld"><span>生日月份</span><select id="bm"><option value="">未填</option>${MONTHS.map((m,i)=>`<option value="${i}" ${b0===i?'selected':''}>${m}</option>`).join('')}</select>
+      <small>只記月份、不記日期；生日月會收到小禮。和旅人檔案「生日與禮遇」是同一題</small></label>
+    <div class="fld"><span>居住地區（選填）</span><div class="chips-s">${REGIONS_TW.map(r=>`<button class="fc ${reg===r?'on':''}" data-rg="${r}">${r}</button>`).join('')}</div>
+      <small>用來通知附近的旅遊說明會、找最近的門市</small></div>
+    <button class="btn1 b1" id="save">儲存</button>
+    <p class="muted small center">${memberState()==='member'?'會存到會員資料，可隨時在「設定 → 隱私與資料」刪除':'目前只存在這支手機'}</p>
+  </section>`);
+  bindBack(el, 'me');
+  el.querySelectorAll('[data-av]').forEach(b => b.onclick = () => { av0 = b.dataset.av; el.querySelectorAll('[data-av]').forEach(x => x.setAttribute('aria-pressed', x === b)); });
+  el.querySelectorAll('[data-rg]').forEach(b => b.onclick = () => { reg = reg === b.dataset.rg ? null : b.dataset.rg; el.querySelectorAll('[data-rg]').forEach(x => x.classList.toggle('on', x.dataset.rg === reg)); });
+  el.querySelector('#save').onclick = async () => {
+    S.nickname = el.querySelector('#nn').value.trim(); S.avatar = av0; S.region_tw = reg;
+    const v = el.querySelector('#bm').value, e = S.prof.card_e = S.prof.card_e || {};
+    if (v === '') delete e.birthMonth; else e.birthMonth = +v;
+    save();
+    const card = CARDS.find(c => c.k === 'card_e');
+    if (doneCard(card) && addPoints('card_e', `完成「${card.t}」`, card.pts)) { plusPop(card.pts); addNote('perk', `完成「${card.t}」+${card.pts} 點`, card.use, '#/pass/points'); }
+    await pushMember({ nickname:S.nickname || null, avatar_key:S.avatar, region:S.region_tw }); pushProfile();
+    toast('已儲存'); back('me');
+  };
+  return el;
+}
+
+/* ----- 收藏、詢問紀錄 ----- */
+function favsView(){
+  const all = S.quizDone ? mine() : TRIPS.map(t => ({t, s:0, why:[]}));
+  const list = all.filter(x => S.favs.includes(x.t.name));
+  const el = $h(`<section class="pad">${topbar(`我的收藏（${list.length}）`, {home:true})}
+    <div class="rows ${S.cmp.length?'has-bar':''}">${list.length ? list.map(x => tripRow(x, {fit:S.quizDone?fitPct(all, x.s):null})).join('') : '<div class="empty">還沒有收藏。看到喜歡的團，按右邊的愛心；降價或名額變動會通知你。</div>'}</div>
+    ${list.length?'':'<a class="btn2 b2" href="#/explore">去探索行程</a>'}
+    ${S.cmp.length?`<a class="cmp-bar b3" href="#/compare">已選 ${S.cmp.length} 團　比較 →</a>`:''}</section>`);
+  bindBack(el, 'me'); bindRows(el);
+  el.querySelectorAll('[data-fav]').forEach(b => b.addEventListener('click', () => setTimeout(render, 300)));
+  return el;
+}
+function inquiriesView(){
+  const list = S.inq || [];
+  const el = $h(`<section class="pad">${topbar('詢問紀錄', {home:true})}
+    <div class="rows">${list.length ? list.map(q => { const i = tripId(q.trip.split('｜')[0]); return `<a class="row-card op" href="#/${i>=0?'advisor/'+i:'advisor'}">
+      <div class="rc-main"><b>${esc(q.trip.split('｜')[0])}</b><span class="muted">${fmtDate(q.at)}詢問</span></div><em class="st st-${q.status||'new'}">${INQ_STATUS[q.status||'new']}</em>${ic('chev','end')}</a>`; }).join('')
+      : '<div class="empty">還沒有詢問。在行程頁按「我想了解」，顧問就會用交接代碼接手。</div>'}</div>
+    <p class="muted small">狀態由顧問更新：待回覆 → 已回覆 → 已報價 → 已報名。</p></section>`);
+  bindBack(el, 'me'); return el;
+}
+
+/* ----- 設定 ----- */
+function settingsView(){
+  const ms = memberState(), pf = S.prefs = Object.assign({ advisor:true, buddy:true, perk:true, birthday:true, quiet:true }, S.prefs || {});
+  const dflt = S.fltDefault || defaultFlt();
+  const sw = (id, label, on, sub='') => `<label class="sw"><span>${label}${sub?`<small>${sub}</small>`:''}</span><input type="checkbox" data-sw="${id}" ${on?'checked':''}><i></i></label>`;
+  const row = (href, label, sub='') => `<a class="srow op" href="${href}"><span>${label}${sub?`<small>${sub}</small>`:''}</span>${ic('chev','end')}</a>`;
+  const el = $h(`<section class="pad settings">${topbar('設定', {home:true})}
+    <h2 class="sh">帳號</h2><div class="sgroup">
+      <div class="srow"><span>交接代碼<small>${ms==='member'?'把代碼告訴顧問就能接手':ms==='demo'?'示範代碼':'成為會員後產生'}</small></span><b class="code-s">${ms==='demo'?'YT0126':ms==='member'?(S.me&&S.me.code||'…'):'—'}</b></div>
+      <div class="srow"><span>LINE 綁定<small>正式版開放：綁定後自動帶入出團紀錄與護照等級</small></span><em class="muted">尚未開放</em></div>
+      ${ms==='demo'?'<button class="srow danger-t" id="exitDemo"><span>離開示範帳號</span></button>':ms==='trial'?'<button class="srow" id="optin"><span>成為會員（同意儲存）</span></button>':''}
+    </div>
+    <h2 class="sh">通知</h2><div class="sgroup">
+      ${sw('line','同步到永信 LINE 官方帳號', S.lineSync)}
+      ${sw('advisor','顧問回覆', pf.advisor)}${sw('buddy','旅伴', pf.buddy)}${sw('perk','優惠與禮遇', pf.perk, '收藏的團降價、早鳥開賣')}${sw('birthday','生日月禮', pf.birthday)}
+      ${sw('quiet','勿擾時段', pf.quiet, '晚上 10 點到早上 9 點不推播，訊息留到早上')}
+    </div>
+    <h2 class="sh">推薦偏好</h2><div class="sgroup">
+      ${row('#/me','管理旅人檔案', `完成 ${completion()}%`)}
+      <div class="srow col"><span>探索頁預設篩選<small>打開探索時自動套用</small></span><div class="chips-s">${[['noshop','無購物站'],['cool','避開炎熱'],['walk','走路不累']].map(([k,l])=>`<button class="fc ${dflt.includes(k)?'on':''}" data-df="${k}">${l}</button>`).join('')}</div></div>
+      <button class="srow" id="redo"><span>重新做測驗<small>角色與推薦會重算；旅人檔案保留</small></span>${ic('chev','end')}</button>
+    </div>
+    <h2 class="sh">隱私與資料</h2><div class="sgroup">
+      ${row('#/me/legal/data','我們記錄什麼、用途與保存期間')}
+      <div class="srow"><span>同意紀錄<small>${ms==='member'&&S.me&&S.me.consent_at?`${new Date(S.me.consent_at).toLocaleDateString('zh-TW')} 同意儲存`:ms==='demo'?'示範帳號不儲存':'尚未同意，資料只在這支手機'}</small></span></div>
+      <button class="srow" id="dl"><span>下載我的資料<small>一個 JSON 檔：測驗、檔案、收藏、點數、詢問</small></span>${ic('chev','end')}</button>
+      ${ms==='member'?'<button class="srow" id="withdraw"><span>撤回同意<small>刪除雲端資料，改回只存在這支手機</small></span></button>':''}
+      ${ms==='demo'?'':'<button class="srow danger-t" id="del"><span>刪除全部資料<small>測驗、檔案、收藏、點數與詢問都會清除，無法復原</small></span></button>'}
+    </div>
+    <h2 class="sh">條款</h2><div class="sgroup">
+      ${row('#/me/legal/privacy','隱私權政策')}${row('#/me/legal/terms','服務條款')}${row('#/me/legal/notice','個人資料蒐集告知事項')}
+    </div>
+    <h2 class="sh">關於</h2><div class="sgroup">
+      <div class="srow"><span>版本</span><em class="muted">${APP_VER}</em></div>
+      <button class="srow" id="fb"><span>意見回饋<small>用 LINE 告訴我們哪裡不好用</small></span>${ic('chev','end')}</button>
+      <div class="srow col"><span>關於這個 App<small>輔大創新創業社課程專案的原型，不是永信旅遊的官方 App；行程、價格與點數規則皆為示意。</small></span></div>
+    </div>
+  </section>`);
+  bindBack(el, 'me');
+  el.querySelectorAll('[data-sw]').forEach(i => i.onchange = () => { const k = i.dataset.sw;
+    if (k === 'line') S.lineSync = i.checked; else pf[k] = i.checked; save();
+    pushMember({ prefs:{ ...pf, line:S.lineSync, filters:S.fltDefault || null } }); });
+  el.querySelectorAll('[data-df]').forEach(b => b.onclick = () => { const k = b.dataset.df, cur = new Set(S.fltDefault || defaultFlt());
+    cur.has(k) ? cur.delete(k) : cur.add(k); S.fltDefault = [...cur]; S.flt = null; save(); b.classList.toggle('on', cur.has(k));
+    pushMember({ prefs:{ ...pf, line:S.lineSync, filters:S.fltDefault } }); });
+  el.querySelector('#redo').onclick = () => openSheet(`<h3>重新做測驗？</h3><p>角色與推薦會依新答案重算；旅人檔案、收藏與點數都保留。</p>
+    <button class="btn1 b1" id="go">重新開始</button><button class="btn2 b2" data-close>取消</button>`,
+    (sh, close) => sh.querySelector('#go').onclick = () => { close(); state.ans = {}; S.quizDone = false; S.flt = null; save(); nav('quiz/0'); });
+  el.querySelector('#dl').onclick = () => {
+    const data = { exported_at:new Date().toISOString(), app:'歐洲旅人護照（課程原型）', member:memberState(), nickname:S.nickname, avatar:S.avatar, region:S.region_tw,
+      code:S.me && S.me.code, role:state.pace, answers:state.ans, profile:S.prof, favorites:S.favs, points:S.ledger, inquiries:S.inq || [], notifications:S.notes, prefs:S.prefs };
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type:'application/json' }));
+    a.download = `travel-passport-data-${new Date().toISOString().slice(0,10)}.json`; document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); toast('已下載我的資料'); track('data_export');
+  };
+  const wd = el.querySelector('#withdraw'); if (wd) wd.onclick = () => openSheet(`<h3>撤回同意？</h3><p>雲端的測驗、檔案、收藏、點數、詢問與旅伴配對都會刪除，交接代碼失效；這支手機上的測驗結果會保留，改成試玩模式。</p>
+    <button class="btn1 b1 danger-b" id="go">撤回並刪除雲端資料</button><button class="btn2 b2" data-close>取消</button>`, (sh, close) => sh.querySelector('#go').onclick = async () => {
+      close(); const me = await ensureCustomer(); if (me) await sb.from('customers').delete().eq('id', me.id); await sb.auth.signOut();
+      S.consent = 'no'; S.me = null; S.ledger = S.ledger.filter(x => x.reason.startsWith('card')); S.buddies = []; S.notes = S.notes.filter(n => !n.db); S.inq = []; save(); toast('已撤回同意，雲端資料已刪除'); render(); });
+  const del = el.querySelector('#del'); if (del) del.onclick = () => openSheet(`<h3>刪除全部資料？</h3><p>測驗、旅人檔案、收藏、點數、詢問與旅伴配對都會清除，無法復原。</p>
+    <button class="btn1 b1 danger-b" id="go">確定刪除</button><button class="btn2 b2" data-close>取消</button>`, (sh, close) => sh.querySelector('#go').onclick = async () => {
+      close(); if (online()) { const me = await ensureCustomer(); if (me) await sb.from('customers').delete().eq('id', me.id); await sb.auth.signOut(); }
+      try { localStorage.removeItem(LS); } catch(e) {} location.href = baseUrl() + '#/home'; location.reload(); });
+  const ex = el.querySelector('#exitDemo'); if (ex) ex.onclick = () => { try { localStorage.removeItem(LS); } catch(e) {} location.href = baseUrl() + '#/home'; location.reload(); };
+  const oi = el.querySelector('#optin'); if (oi) oi.onclick = optIn;
+  el.querySelector('#fb').onclick = () => { if (S.demo) return toast('示範帳號不會真的傳出'); openLine(lineMsg('意見回饋：')); };
+  return el;
+}
+
+/* ----- 隱私與條款（課程原型草稿，正式版需永信法務審閱） ----- */
+const LEGAL = {
+  data: ['我們記錄什麼', [
+    ['會記錄', '測驗答案與旅人角色；旅人檔案（出發條件、耐受度、興趣、聯絡偏好、生日月份）；暱稱、頭像、居住地區；收藏、比較、詢問、點數與旅伴配對；在 App 裡的操作事件（例如看了哪一團、按了哪個按鈕）。'],
+    ['不會記錄', '真實姓名、電話、身分證字號、完整生日、照片、所在位置、通訊錄。'],
+    ['用途', '推薦行程、讓顧問用交接代碼接手、發送你開啟的通知、計算點數與等級、以不具名的方式統計測驗與推薦成效。'],
+    ['存在哪裡', 'Supabase 雲端資料庫（東京或新加坡機房）；只有你本人與負責顧問看得到個別資料，主管只看彙總數字。'],
+    ['保存多久', '最後一次使用起 12 個月；課程專案結束後一併刪除。你也可以隨時在「設定 → 隱私與資料」刪除。'],
+    ['試玩與示範帳號', '只存在這支手機的瀏覽器，不會上傳。']]],
+  privacy: ['隱私權政策', [
+    ['提供者', '本 App 為輔大創新創業社「永信旅遊」課程專案的原型，由課程團隊提供，不是永信旅遊的官方服務。'],
+    ['蒐集方式', '你按「同意並開始測驗」後，才會建立匿名會員並儲存資料；不按同意則只存在這支手機。'],
+    ['資料類別與用途', '見「我們記錄什麼」。'],
+    ['分享對象', '不出售、不提供給第三方廣告；只在提供推薦與顧問服務必要的範圍內，由課程團隊與擔任顧問的成員存取。'],
+    ['你的權利', '查詢、下載、更正、停止使用、刪除你的資料；撤回同意後，雲端資料會刪除。'],
+    ['安全', '資料庫以列層級權限控管：旅客只能讀寫自己的資料；網頁只放公開金鑰，不放管理金鑰。'],
+    ['政策更新', '更新時會在 App 內通知，並註明版本日期。'],
+    ['版本', '草稿 2026/11/10；正式上線前須由永信旅遊法務審閱。']]],
+  terms: ['服務條款', [
+    ['服務內容', '旅行風格測驗、行程推薦、比較、旅伴共同推薦、點數與等級、顧問交接。'],
+    ['行程與價格', 'App 內行程、價格、月份與名額皆為課程示意，以永信旅遊正式報價與契約為準。'],
+    ['點數', '點數只在報名成交時折抵，每團折抵上限為團費 3%（示意），不得兌換現金、不可轉讓；有效期限以 App 顯示為準。'],
+    ['帳號', '匿名會員以交接代碼辨識；請勿把代碼提供給不認識的人。'],
+    ['禁止行為', '大量自動作答、冒用他人代碼、干擾系統運作。'],
+    ['免責', '原型可能有錯誤或中斷，課程團隊會盡力修正；旅遊安全、簽證與保險資訊請以官方公告為準。'],
+    ['版本', '草稿 2026/11/10。']]],
+  notice: ['個人資料蒐集告知事項', [
+    ['蒐集者', '輔大創新創業社「永信旅遊」課程團隊（課程原型）。'],
+    ['蒐集目的', '行銷、客戶管理與服務（推薦行程、顧問接手、會員權益）、統計分析。'],
+    ['個人資料類別', '暱稱、生日月份、居住地區、旅遊偏好與測驗答案、在 App 內的操作紀錄（屬可辨識個人之識別類、特徵類與社會情況類資料）。'],
+    ['利用期間、地區、對象與方式', '期間：最後一次使用起 12 個月或課程結束時；地區：臺灣及雲端機房所在地；對象：課程團隊與擔任顧問的成員；方式：以電子方式處理與利用。'],
+    ['當事人權利', '依個人資料保護法第 3 條，你可以查詢或請求閱覽、製給複製本、補充或更正、請求停止蒐集處理利用、請求刪除；在「設定 → 隱私與資料」即可操作。'],
+    ['不提供的影響', '你可以不提供任何資料，仍能使用測驗與探索；只是推薦較不準，也不能使用交接代碼、點數與旅伴配對。']]]
+};
+function legalView(k){
+  const L = LEGAL[k] || LEGAL.privacy;
+  const el = $h(`<section class="pad legal">${topbar(L[0], {home:true})}
+    <p class="muted small">輔大創新創業社課程原型・草稿 2026/11/10・非永信旅遊官方條款</p>
+    ${L[1].map(([h, t]) => `<div class="lg-sec"><h3>${h}</h3><p>${t}</p></div>`).join('')}
+    <p class="muted small">我們不是律師；本頁為原型草稿，正式版須由永信旅遊法務審閱。</p></section>`);
+  bindBack(el, 'me/settings'); return el;
 }
 
 /* ===== 15 旅人檔案：一題一頁 ===== */
@@ -783,7 +986,7 @@ function cardQView(k, i){
   i = Math.min(Math.max(i, 0), card.qs.length - 1);
   const q = card.qs[i], v = S.prof[card.k] = S.prof[card.k] || {}, cur = v[q.id], last = i === card.qs.length - 1;
   const el = $h(`<section class="pad cardq">
-    <header class="bar sticky"><button class="icon-btn" data-back aria-label="返回我的">${ic('back')}</button>
+    <header class="bar sticky"><button class="icon-btn" data-back aria-label="返回會員">${ic('back')}</button>
       <div class="qprog"><span>${card.t}・${i+1} / ${card.qs.length}</span><div class="prog"><i style="width:${(i+1)/card.qs.length*100}%"></i></div></div>
       <span class="pts-badge ${doneCard(card)?'got':''}">${doneCard(card)?'已完成':'+'+card.pts+' 點'}</span></header>
     <h2 class="qtitle">${q.t}</h2>
