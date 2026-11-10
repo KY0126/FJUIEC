@@ -142,7 +142,7 @@ function contentSlide({ sub, chip, title, page, speaker, img, imgs, items, notes
 }
 
 
-// 開場影片（約 4.6 秒）：地圖淡入 → 手寫標語 → 底線 → 永信 Logo → 淡入本頁畫面；預覽圖就是本頁，點一下播放
+// p.1 開場影片（約 4.6 秒）：手寫標語 → 底線 → 永信 Logo → 淡入本頁；p.13 結尾影片（約 5 秒）：本頁淡出 → 手寫標語 → 底線 → Logo，停在 Logo。預覽圖都是本頁，點一下播放
 function openingVideo(s, n){
   if (process.env.NO_VIDEO) return;   // 產生影片結尾畫面時，先輸出沒有影片的版本
   const cover = 'data:image/png;base64,' + require('fs').readFileSync(IMG + `cover_p${n}.png`).toString('base64');
@@ -602,7 +602,7 @@ contentSlide({ sub: 6, chip: '行動結論｜⑦未來藍圖與本次請求', ti
   s.addNotes([
     '【這頁要回答】強力結論：一分鐘找到自己的歐洲；讓每一趟旅程，都留下下一次出發的理由。',
     '【概念】品牌回想：標語和第 1、2 頁一字不差，讓主管散會後不看簡報也想得起來。',
-    '【開場影片】這頁也蓋了同一段影片，結尾淡入成本頁：按一下播放，讓第一眼和最後一眼是同一個畫面。',
+    '【結尾影片】這頁先照常講完（畫面就是本頁），講完、進 Q&A 前按一下播放：本頁淡出 → 手寫「一分鐘找到自己的歐洲」→ 橘色底線 → 永信 Logo 逐筆寫出，停在 Logo 與標語的畫面，和開場第一眼呼應。',
     '【三個膠囊】沿用第 5 頁「痛點、服務、好處」的關鍵字：說不出想去哪／測驗＋LINE 接手／一分鐘拿到推薦。說完切入問答。',
   ].join('\n'));
   openingVideo(s, 13);
