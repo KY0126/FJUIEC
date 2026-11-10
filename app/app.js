@@ -278,6 +278,7 @@ async function loadRemote(){
   if (l.data && l.data.length) { const reasons = new Set(l.data.map(x=>x.reason)); S.ledger = [...l.data.map(x=>({reason:x.reason,label:x.label,points:x.points,status:x.status,at:x.created_at})), ...S.ledger.filter(x=>!reasons.has(x.reason))]; }
   if (me.role_key && !state.pace) { state.pace = me.role_key; state.view = me.role_key; state.ans = me.answers || {}; S.quizDone = true; }
   if (me.nickname) S.nickname = me.nickname;
+  if (typeof me.trips_taken === 'number') { if (S.lastTrips != null && me.trips_taken > S.lastTrips) welcomeBackMoment((S.inq[0] || {}).trip || ''); S.lastTrips = me.trips_taken; }
   if (me.avatar_key) S.avatar = me.avatar_key; if (me.region) S.region_tw = me.region;
   if (me.prefs && Object.keys(me.prefs).length) { const { line, filters, ...rest } = me.prefs; S.prefs = rest; if (line !== undefined) S.lineSync = line; if (filters) S.fltDefault = filters; }
   const iq = await sb.from('inquiries').select('trip_name,status,created_at').eq('customer_id', me.id).order('created_at', {ascending:false});
@@ -508,6 +509,55 @@ function revealThen(go){
   timers.push(setTimeout(end, 1550));
 }
 
+/* ===== 02c 重要時刻：生日卡、準備出發、歡迎回來（手寫動畫，showMoment 在 splash.js） ===== */
+const afterSplash = fn => document.querySelector('.splash') ? setTimeout(() => afterSplash(fn), 400) : fn();
+function checkBirthday(){
+  const bm = birthMonth(), now = new Date(); if (bm === null || bm !== now.getMonth() || !S.quizDone) return;
+  const key = `${now.getFullYear()}-${bm}`; if (S.bdayShown === key) return;
+  S.bdayShown = key; save();
+  if (!S.notes.some(n => n.title === '生日月禮' && new Date(n.at).getMonth() === bm)) addNote('perk', '生日月禮', '這個月是你的生日月，憑交接代碼領香氛小樣一份。', '#/pass');
+  afterSplash(() => showMoment({ hand:'生日快樂', sub:`${esc(S.nickname || '旅人')}，這個月是你的生日月`,
+    extra:`<div class="mo-gift">${ic('gift')}<span>生日月禮：憑交接代碼到門市或請顧問寄送香氛小樣一份（示意）</span></div>` }));
+  track('moment', { kind:'birthday' });
+}
+function departMoment(trip, sub, key){
+  S.seenMoments = S.seenMoments || []; if (S.seenMoments.includes(key)) return;
+  S.seenMoments.push(key); save();
+  const t = TRIPS.find(x => x.name === trip || x.name.startsWith(trip)); const lit = t ? regionOf(t).cc : [];
+  afterSplash(() => showMoment({ hand:'準備出發', sub, lit })); track('moment', { kind:'depart' });
+}
+function welcomeBackMoment(trip){
+  const t = TRIPS.find(x => x.name === trip || x.name.startsWith(trip)) || mine()[0].t, g = regionOf(t);
+  const nxt = mine().find(x => x.t.region !== t.region);
+  afterSplash(() => showMoment({ hand:'歡迎回來', lit:g.cc, seq:true, hold:2,
+    sub:`${short(t)}・足跡點亮 ${g.cc.length} 國，回國回饋 200 點入帳`,
+    extra: nxt ? `<div class="mo-next">下一站推薦：<b>${short(nxt.t)}</b><span>${esc(nxt.why.slice(0,2).join('・'))}</span></div>` : '' }));
+  track('moment', { kind:'welcome_back' });
+}
+
+/* ===== 02d 分享角色卡：3 秒動態影片（或圖片）＋連結 ===== */
+function shareRoleSheet(){
+  const P = PACES[state.view], link = baseUrl().replace(/app\/?$/, 'find-my-europe');
+  const txt = `我是「${P.name}」（${P.alias}）！一分鐘測你是哪一種歐洲旅人：${link}`;
+  openSheet(`<h3>分享角色卡</h3>
+    <button class="sheet-opt op" id="clip"><b>動態角色卡（3 秒影片）</b><span>手寫「我是${P.short}」＋底線，適合 IG 限動、LINE</span></button>
+    <button class="sheet-opt op" id="link"><b>只傳連結</b><span>朋友點開就能做測驗</span></button>
+    <div id="prog" hidden>${loaderHTML('製作中')}</div>
+    <button class="btn2 b2" data-close>取消</button>`, (sh, close) => {
+    sh.querySelector('#link').onclick = () => { close(); track('share', { what:'role_link' }); shareText(txt); };
+    sh.querySelector('#clip').onclick = async () => {
+      sh.querySelector('#prog').hidden = false; sh.querySelectorAll('.sheet-opt').forEach(b => b.disabled = true);
+      try {
+        const r = await makeRoleClip({ roleShort:P.short, roleName:P.name, alias:P.alias, avatarSVG:av(P.ch, TIERS[tierIdx()][0]) });
+        const file = new File([r.blob], `travel-role-${state.view}.${r.ext}`, { type:r.type }); close(); track('share', { what:'role_clip', ext:r.ext });
+        if (navigator.canShare && navigator.canShare({ files:[file] })) { try { await navigator.share({ files:[file], text:txt }); return; } catch(e) { if (e.name === 'AbortError') return; } }
+        const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = file.name; document.body.append(a); a.click();
+        setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000); toast(r.ext === 'png' ? '已存成圖片（這支手機不支援錄影片）' : '已下載動態角色卡');
+      } catch(e) { close(); toast('製作失敗，改傳連結'); shareText(txt); }
+    };
+  });
+}
+
 /* ===== 03 結果 ===== */
 function resultView(){
   if (!S.quizDone) { setTimeout(() => nav('welcome', true)); return $h('<section></section>'); }
@@ -524,7 +574,7 @@ function resultView(){
     ${S.inv && S.consent!=='yes' ? '<p class="inv-note">試玩模式不會和邀請你的旅伴配對；到「會員」成為會員（同意儲存）後就會配對。</p>' : ''}
   </section>`);
   el.querySelector('#go').onclick = () => { const a = S.after; S.after = null; save(); nav(a || 'home', true); };
-  el.querySelector('#share').onclick = () => { track('share', {what:'role'}); shareText(`我是「${P.name}」（${P.alias}）！一分鐘測你是哪一種歐洲旅人：${baseUrl()}`); };
+  el.querySelector('#share').onclick = () => shareRoleSheet();
   return el;
 }
 
@@ -703,7 +753,7 @@ function buddyView(){
     ${head('旅伴', {big:true, back:'auto', right:'<button class="txt-btn" id="inv">＋ 邀請</button>'})}
     ${body}
     <div class="sec-h"><h2>一起決定</h2><button class="txt-btn" id="newPoll">＋ 發起投票</button></div>
-    <div id="polls"><p class="muted small">載入中…</p></div>
+    <div id="polls">${loaderHTML()}</div>
     <div class="sec-h"><h2>揪團</h2><span class="muted small">湊滿有優惠＋點數</span></div>
     <div id="groups"></div>
     <a class="link-row op" href="#/team">${ic('star')}<span>我的團：團友牆${S.demo?'（巴黎 3/18 團）':''}</span>${ic('chev','end')}</a>
@@ -921,6 +971,7 @@ async function fillSocial(el){
   if (!online()) { pb.innerHTML = '<p class="muted small">成為會員後就能發起投票與揪團。</p>'; gb.innerHTML = ''; return; }
   const [ps, gs] = await Promise.all([Promise.all(S.polls.slice(0,3).map(c => sb.rpc('get_poll', { p_code:c }))), Promise.all(S.groups.slice(0,3).map(c => sb.rpc('get_group', { p_code:c })))]);
   const P = ps.map(r => r.data).filter(Boolean), G = gs.map(r => r.data).filter(Boolean);
+  G.filter(g => g.status !== 'open').forEach(g => departMoment(g.trip, `揪團成功！${short({name:g.trip})} 已湊滿 ${g.members.length} 人，顧問會確認名額`, 'group:' + g.code));
   pb.innerHTML = P.length ? P.map(pollCard).join('') : '<p class="muted small">還沒有投票。決定不了去哪團？發起一個，讓旅伴點一下就好。</p>';
   gb.innerHTML = G.length ? G.map(groupCard).join('') : '<p class="muted small">還沒有揪團。在上面任一團按「揪這團」就能開始。</p>';
   bindSocial(el);
@@ -936,7 +987,7 @@ function bindSocial(el){
   el.querySelectorAll('[data-group-from]').forEach(b => b.onclick = () => groupSheet(+b.dataset.groupFrom));
   el.querySelectorAll('[data-share-group]').forEach(b => b.onclick = () => S.demo ? toast('示範帳號不會真的傳出；正式版會傳出揪團小卡（附自我介紹揪人版）') : shareGroup(b.dataset.shareGroup, b.closest('.group').querySelector('h3').textContent.replace('揪團：','')));
   el.querySelectorAll('[data-send-group]').forEach(b => b.onclick = async () => {
-    if (S.demo) { demoGroup().status = 'sent'; S.inq.unshift({ trip:demoGroup().trip + '（揪團 2 人）', status:'new', at:new Date().toISOString() }); save(); toast('已送給顧問（示範）'); return fillSocial(el); }
+    if (S.demo) { demoGroup().status = 'sent'; departMoment(demoGroup().trip, `揪團成功！${short({name:demoGroup().trip})} 已送給顧問確認名額`, 'group:DEMO02'); S.inq.unshift({ trip:demoGroup().trip + '（揪團 2 人）', status:'new', at:new Date().toISOString() }); save(); toast('已送給顧問（示範）'); return fillSocial(el); }
     const r = await sb.rpc('send_group', { p_code:b.dataset.sendGroup }); if (r.data) { toast('已送給顧問，會用交接代碼聯絡你'); track('group_send'); fillSocial(el); } });
 }
 
@@ -974,7 +1025,9 @@ function teamView(){
     el.querySelector('#squad').innerHTML = Object.keys(hit).length ? `<div class="box squad">${Object.entries(hit).map(([t, ns]) => `<p>你和 <b>${ns.map(esc).join('、')}</b> 是「${t}」小隊</p>`).join('')}</div>` : ''; };
   el.querySelectorAll('[data-mt]').forEach(b => b.onclick = () => { const k = b.dataset.mt; S.metoo = S.metoo.includes(k) ? S.metoo.filter(x => x !== k) : [...S.metoo, k]; save(); b.classList.toggle('on'); squad(); });
   el.querySelectorAll('#vis [data-vis]').forEach(b => b.onclick = () => { S.intro = { ...myIntro(), vis:b.dataset.vis }; save(); pushProfile(); render(); toast('已更新公開範圍'); });
-  squad(); return el;
+  squad();
+  departMoment(T.trip, `${T.trip}・${days} 天後出發`, 'team:' + T.trip + T.date);
+  return el;
 }
 
 /* ===== 10 找顧問 ===== */
@@ -987,7 +1040,7 @@ function summaryLines(tripName){
 }
 function advisorView(){
   const ti = route()[1], t = ti != null && ti !== '' ? TRIPS[+ti] : null;
-  const el = $h(`<section class="pad adv">${topbar('找顧問', {home:true})}<div id="body"><p class="muted">準備交接代碼中…</p></div></section>`);
+  const el = $h(`<section class="pad adv">${topbar('找顧問', {home:true})}<div id="body">${loaderHTML('準備交接代碼中')}</div></section>`);
   bindBack(el, t ? 'trip/' + ti : 'home');
   const body = el.querySelector('#body');
   const draw = code => {
@@ -1003,7 +1056,7 @@ function advisorView(){
   if (S.demo) { draw('YT0126'); return el; }
   if (S.consent !== 'yes') { body.innerHTML = `<div class="empty-card"><h2>交接代碼需要儲存資料</h2><p>同意後，顧問才看得到你的角色、檔案與收藏，不用重問。</p>
       <button class="btn1 b1" id="ok">同意儲存，產生代碼</button><a class="txt-link" data-back2>先不要</a></div>`;
-    body.querySelector('#ok').onclick = async () => { S.consent = 'yes'; save(); body.innerHTML = '<p class="muted">產生中…</p>'; await ensureCustomer(); await pushQuiz(); render(); };
+    body.querySelector('#ok').onclick = async () => { S.consent = 'yes'; save(); body.innerHTML = loaderHTML('產生交接代碼中'); await ensureCustomer(); await pushQuiz(); render(); };
     body.querySelector('[data-back2]').onclick = () => back('home'); return el; }
   ensureCustomer().then(async me => {
     if (!me) { body.innerHTML = `<div class="empty-card"><h2>目前連不上資料庫</h2><p>請稍後再試，或直接開 LINE 詢問。</p></div>`; return; }
@@ -1047,8 +1100,10 @@ function passView(){
     <div class="tiers">${PERKS.map(([n,c,d],i)=>`<div class="tier ${i===lv?'now':''} ${i<lv?'past':''}"><b>${n}${i===lv?'<small>目前</small>':''}</b><span>${d}</span><small>${c}</small></div>`).join('')}</div>
     <div class="sec-h"><h2>足跡地圖</h2><span class="muted small">第一次出團後點亮</span></div>
     <div class="foot">${(()=>{ const paths = GEO.filter(x=>HOME[x.c]).map(x=>`<path d="${x.d}"/>`).join(''); return `<svg viewBox="40 60 720 680" aria-hidden="true">${paths}</svg>`; })()}
-      <p>${trips?`已出團 ${trips} 次，足跡會依永信訂單紀錄點亮。`:'第一次出團後，這裡會點亮你去過的國家，並推薦下一站。'}</p></div>
+      <p>${trips?`已出團 ${trips} 次，足跡會依永信訂單紀錄點亮。`:'第一次出團後，這裡會點亮你去過的國家，並推薦下一站。'}</p>
+      ${S.demo?'<button class="btn2 b2" id="wb">看回國後的樣子（示範）</button>':''}</div>
   </section>`);
+  const wb = el.querySelector('#wb'); if (wb) wb.onclick = () => welcomeBackMoment('巴黎精品與甜點');
   return el;
 }
 
@@ -1160,7 +1215,7 @@ function editView(){
     const card = CARDS.find(c => c.k === 'card_e');
     if (doneCard(card) && addPoints('card_e', `完成「${card.t}」`, card.pts)) { plusPop(card.pts); addNote('perk', `完成「${card.t}」+${card.pts} 點`, card.use, '#/pass/points'); }
     await pushMember({ nickname:S.nickname || null, avatar_key:S.avatar, region:S.region_tw }); pushProfile();
-    toast('已儲存'); back('me');
+    toast('已儲存'); back('me'); setTimeout(checkBirthday, 450);
   };
   return el;
 }
@@ -1342,4 +1397,5 @@ function cardQView(k, i){
   for (let k = 1; k < chain.length; k++) history.pushState({i:++curIdx}, '', '#/' + chain[k]); })();
 render();
 if (typeof showSplash === 'function') showSplash();
-loadRemote().then(() => render());
+checkBirthday();
+loadRemote().then(() => { render(); checkBirthday(); });

@@ -14,4 +14,6 @@ npm i pptxgenjs            # 需要 /mnt/skills/public/pptx/scripts/apply_theme.
 node build_deck.js         # 產生 deck.pptx
 soffice --headless --convert-to pdf deck.pptx && pdftoppm -r 60 -png deck.pdf s   # 預覽
 ```
+開場影片：`img/open_p1.mp4`、`img/open_p13.mp4`（1920×1080、約 4.6 秒，手寫標語→底線→永信 Logo→淡入該頁畫面），覆蓋在 p.1 與 p.13，預覽圖是該頁截圖 `img/cover_p1.png`、`img/cover_p13.png`；改了這兩頁要重新產生截圖與影片。
+
 規則：只有 p.3 放 QR 與可點擊網址（ky0126.github.io/FJUIEC/find-my-europe）；所有內容用「林雅婷」，不出現「林小美」。

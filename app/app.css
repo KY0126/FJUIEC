@@ -514,3 +514,31 @@ div.srow{cursor:default}
 ::view-transition-old(root),::view-transition-new(root){animation-duration:.25s}
 .vt .screen>*{animation:none!important}
 @media (prefers-reduced-motion:reduce){.splash *,.reveal *{animation:none!important;transition:none!important}}
+
+/* ---- 手寫字共用 ---- */
+.hand{display:block;max-width:100%;height:auto;overflow:visible}
+.hd-wipe{transform-box:fill-box;transform-origin:left;animation:spWipe .2s ease-out both}
+.hd-ul{fill:none;stroke:var(--brand);stroke-width:7;stroke-linecap:round;stroke-dasharray:1 1;stroke-dashoffset:1;animation:spUl .3s ease-out both}
+/* ---- 重要時刻（生日、準備出發、歡迎回來） ---- */
+.moment{position:fixed;inset:0;z-index:95;background:var(--cream);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:opacity .3s;animation:spMapIn .25s ease-out both}
+.moment.out{opacity:0;pointer-events:none}
+.mo-map{position:absolute;inset:0;width:100%;height:100%}
+.mo-map g{transform-origin:50% 45%;animation:spPush 4s linear both}
+.mo-map path{fill:#00223D;fill-opacity:.07;stroke:#fff;stroke-width:.8;vector-effect:non-scaling-stroke}
+.mo-map path.lit{animation:moLit .5s ease-out both}
+@keyframes moLit{to{fill:#F39500;fill-opacity:.45}}
+.mo-body{position:relative;display:flex;flex-direction:column;align-items:center;gap:14px;padding:0 28px;text-align:center;max-width:420px}
+.mo-body .hand{width:min(300px,80vw)}
+.mo-sub{margin:0;font-size:16px;font-weight:700;color:var(--navy);animation:spMapIn .4s ease-out both;background:rgba(249,246,239,.85);border-radius:10px;padding:4px 10px}
+.mo-extra{animation:spMapIn .4s ease-out both}
+.mo-gift,.mo-next{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 14px;font-size:14px;text-align:left;box-shadow:0 2px 0 #EFE7D8}
+.mo-gift .ic{color:var(--orange-ink);width:28px;height:28px}
+.mo-next{flex-direction:column;align-items:flex-start;gap:2px}.mo-next b{color:var(--orange-ink);font-size:16px}.mo-next span{font-size:12.5px;color:var(--muted)}
+.moment.still *{animation:none!important;stroke-dashoffset:0!important}
+.moment.still .hd-wipe{transform:none}.moment.still .mo-map path.lit{fill:#F39500;fill-opacity:.45}
+/* ---- 載入中：麥克筆底線 ---- */
+.hd-loader{display:flex;flex-direction:column;align-items:center;gap:6px;padding:18px 0;color:var(--muted);font-size:13px}
+.hd-loader svg{width:120px;height:16px;overflow:visible}
+.hd-loader path{fill:none;stroke:var(--brand);stroke-width:5;stroke-linecap:round;stroke-dasharray:1 1;animation:hdLoop 1.4s ease-in-out infinite}
+@keyframes hdLoop{0%{stroke-dashoffset:1}50%{stroke-dashoffset:0}100%{stroke-dashoffset:-1}}
+@media (prefers-reduced-motion:reduce){.moment *,.hd-loader path{animation:none!important}.hd-loader path{stroke-dashoffset:0}}
