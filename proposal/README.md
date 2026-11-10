@@ -10,6 +10,7 @@
 | 列印版 PDF | `proposal/print/build.py` 產生，成品放 `proposal/deliverables/` | A4 15 頁（正文 12＋附錄 3） |
 | 測驗原型 | 同一個 repo 根目錄的 `index.html`（ky0126.github.io/FJUIEC） | 改了介面要重跑 `shoot12.py` 換截圖 |
 | LINE 上架包 | `proposal/deliverables/line/`（`lineassets.py` 產生圖片） | 設定說明在 `deliverables/line/v2/LINE官方帳號設定_完整版.md` |
+| 提案簡報 | `proposal/deck/build_deck.js` 產生 13 頁 pptx（可匯入 Canva），說明見 `proposal/deck/README.md` | 截圖、QR、人物誌也在同資料夾 |
 | 組會資料包 | Claude Docs：https://claude.ai/artifact/YVfsn5mn2hqap1By1ofBz8 | 11/12 組會用 |
 
 ## 資料夾
