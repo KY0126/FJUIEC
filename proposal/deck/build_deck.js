@@ -142,12 +142,22 @@ function contentSlide({ sub, chip, title, page, speaker, img, imgs, items, notes
 }
 
 
-// p.1 開場影片（約 4.6 秒）：手寫標語 → 底線 → 永信 Logo → 淡入本頁；p.13 結尾影片（約 5 秒）：本頁淡出 → 手寫標語 → 底線 → Logo，停在 Logo。預覽圖都是本頁，點一下播放
-function openingVideo(s, n){
-  if (process.env.NO_VIDEO) return;   // 產生影片結尾畫面時，先輸出沒有影片的版本
-  const cover = 'data:image/png;base64,' + require('fs').readFileSync(IMG + `cover_p${n}.png`).toString('base64');
-  s.addMedia({ type: 'video', path: IMG + `open_p${n}.mp4`, x: 0, y: 0, w: I(1920), h: I(1080), cover, objectName: `開場影片（第 ${n} 頁，點一下播放）` });
+// 影片獨立成頁（不佔內容頁）：最前面的開場影片（寫完淡入封面）、最後面的結尾影片（結論頁淡出後寫出標語與 Logo）
+// 預覽圖：開場用影片第一格、結尾用結論頁截圖，所以從上一頁切過來看不出接縫；按一下播放
+function videoSlide(kind){
+  if (process.env.NO_VIDEO) return;   // 產生結論頁截圖時，先輸出沒有影片頁的版本
+  const n = kind === 'open' ? 'p1' : 'p13', coverFile = kind === 'open' ? 'cover_open.png' : 'cover_p13.png';
+  pres.addSection({ title: kind === 'open' ? '開場影片' : '結尾影片' });
+  const s = pres.addSlide({ sectionTitle: kind === 'open' ? '開場影片' : '結尾影片' });
+  s.background = { color: K.bg };
+  const cover = 'data:image/png;base64,' + require('fs').readFileSync(IMG + coverFile).toString('base64');
+  s.addMedia({ type: 'video', path: IMG + `open_${n}.mp4`, x: 0, y: 0, w: I(1920), h: I(1080), cover, objectName: kind === 'open' ? '開場影片（按一下播放）' : '結尾影片（按一下播放）' });
+  s.addNotes(kind === 'open'
+    ? '【開場影片・不算頁數】上台後按一下播放（約 4.6 秒）：手寫「一分鐘找到自己的歐洲」→ 橘色底線 → 永信 Logo 逐筆寫出 → 淡入封面。播完翻到下一頁就是封面，畫面會接起來。時間不夠時可以直接跳過這頁。'
+    : '【結尾影片・不算頁數】結論與 Q&A 講完後翻到這頁、按一下播放（約 5 秒）：結論頁淡出 → 手寫標語 → 橘色底線 → 永信 Logo，停在 Logo 畫面。時間不夠時可以直接略過。');
 }
+videoSlide('open');
+
 // ================= 1 封面 =================
 pres.addSection({ title: '封面與目錄' });
 {
@@ -172,10 +182,9 @@ pres.addSection({ title: '封面與目錄' });
   s.addNotes([
     '【這頁要做到】讓主管一眼認出品牌：名稱、標誌、標語三個品牌要素都要清楚。',
     '【概念】品牌要素（名稱、標誌、標語、代表色）；品牌再認＝看到時認得出來。',
-    '【開場影片】這頁蓋了一段約 4.6 秒的影片：按一下播放，手寫標語→橘色底線→永信 Logo 逐筆寫出，最後淡入成本頁畫面；和 App 開場動畫是同一組。改這頁內容後要重新匯出影片結尾畫面（img/cover_p1.png）。',
+    '【開場影片】封面前一頁是獨立的開場影片（不算頁數），播完淡入這頁；時間不夠可以直接從這頁開始。',
     '【提醒】標語「一分鐘找到自己的歐洲」和第 2 頁漏斗下方、第 13 頁結論一字不差；主視覺為原型的「歐洲探索地圖」（測驗完成後的結果頁），已去背放大並標上國名，拿掉「第一站」標記。配色沿用原型：藍＝北歐、淺橘＝西歐、米褐＝東歐、淺黃＝南歐（永信官網歐洲分類），灰＝不在永信歐洲線；紅色虛線框出永信歐洲線涵蓋的歐洲國家（不含摩洛哥）。縮寫：盧＝盧森堡、斯＝斯洛維尼亞、波赫＝波士尼亞、蒙＝蒙特內哥羅、北馬＝北馬其頓、阿＝阿爾巴尼亞。永信標誌（白色版）放在品牌名稱上方，第 2 頁漏斗入口也有。',
   ].join('\n'));
-  openingVideo(s, 1);
 }
 
 // ================= 2 目錄 =================
@@ -602,11 +611,12 @@ contentSlide({ sub: 6, chip: '行動結論｜⑦未來藍圖與本次請求', ti
   s.addNotes([
     '【這頁要回答】強力結論：一分鐘找到自己的歐洲；讓每一趟旅程，都留下下一次出發的理由。',
     '【概念】品牌回想：標語和第 1、2 頁一字不差，讓主管散會後不看簡報也想得起來。',
-    '【結尾影片】這頁先照常講完（畫面就是本頁），講完、進 Q&A 前按一下播放：本頁淡出 → 手寫「一分鐘找到自己的歐洲」→ 橘色底線 → 永信 Logo 逐筆寫出，停在 Logo 與標語的畫面，和開場第一眼呼應。',
+    '【結尾影片】講完這頁與 Q&A 後，下一頁是獨立的結尾影片（不算頁數），時間不夠可以略過。',
     '【三個膠囊】沿用第 5 頁「痛點、服務、好處」的關鍵字：說不出想去哪／測驗＋LINE 接手／一分鐘拿到推薦。說完切入問答。',
   ].join('\n'));
-  openingVideo(s, 13);
 }
+
+videoSlide('close');
 
 (async () => {
   await pres.writeFile({ fileName: OUT });
