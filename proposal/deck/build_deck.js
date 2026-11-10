@@ -8,11 +8,11 @@ const IMG = __dirname + '/img/';
 const FONT = 'Noto Sans TC';
 const THEME = {
   name: 'YS Orange', headFontFace: FONT, bodyFontFace: FONT,
-  colors: { dk1: '3A3330', lt1: 'FFFFFF', dk2: 'BD5512', lt2: 'FBF8F4',
-    accent1: 'BD5512', accent2: 'EE8A45', accent3: 'F7B98A', accent4: 'FDE3CC',
-    accent5: '7A6E66', accent6: 'EFEBE7', hlink: 'BD5512', folHlink: '8A3C0A' }
+  colors: { dk1: '3A3330', lt1: 'FFFFFF', dk2: 'F59312', lt2: 'FBF8F4',
+    accent1: 'F59312', accent2: 'EE8A45', accent3: 'F7B98A', accent4: 'FDE3CC',
+    accent5: '7A6E66', accent6: 'EFEBE7', hlink: 'F59312', folHlink: '8A3C0A' }
 };
-const K = { main: 'BD5512', mainDk: '8A3C0A', mainMid: 'EE8A45', pink: 'F7B98A', pinkL: 'FDE3CC', pinkLine: 'F6C9A4',
+const K = { main: 'F59312', mainDk: '8A3C0A', mainMid: 'EE8A45', pink: 'F7B98A', pinkL: 'FDE3CC', pinkLine: 'F6C9A4',
   bg: 'FBF8F4', ink: '3A3330', sub: '7A6E66', gray: 'EFEBE7', grayT: 'B5ADA6', grayLine: 'DDD6CF',
   ph: 'F1EBE4', phLine: 'D6CBC0', phT: '93877C', white: 'FFFFFF', alt: 'FDF9F5', rowLine: 'ECE2D8', capOn: 'F6C29A' };
 
@@ -120,7 +120,7 @@ function cards(s, items, x = 1132, w = 692) {
   items.forEach(([label, main, hint], i) => {
     const y = top + i * (h + gap), solid = i === 2;
     rect(s, x, y, w, h, { r: 24, fill: solid ? K.main : K.white, line: i === 0 ? K.pinkLine : K.main, lw: 2.2, name: `卡片${i + 1}` });
-    text(s, label, x + 34, y, 130, h, { size: 38, bold: true, color: solid ? 'FFE6D1' : 'D9661C', name: `卡片${i + 1}_標籤` });
+    text(s, label, x + 34, y, 130, h, { size: 38, bold: true, color: solid ? 'FFE6D1' : 'F59312', name: `卡片${i + 1}_標籤` });
     text(s, main, x + 180, y + 34, w - 214, 70, { size: 54, bold: true, color: solid ? K.white : K.ink, valign: 'bottom', name: `卡片${i + 1}_主句` });
     text(s, hint, x + 180, y + 110, w - 214, 46, { size: 32, color: solid ? 'FFF1E3' : K.sub, valign: 'top', name: `卡片${i + 1}_說明` });
   });
@@ -144,6 +144,7 @@ function contentSlide({ sub, chip, title, page, speaker, img, imgs, items, notes
 
 // 開場影片（約 4.6 秒）：地圖淡入 → 手寫標語 → 底線 → 永信 Logo → 淡入本頁畫面；預覽圖就是本頁，點一下播放
 function openingVideo(s, n){
+  if (process.env.NO_VIDEO) return;   // 產生影片結尾畫面時，先輸出沒有影片的版本
   const cover = 'data:image/png;base64,' + require('fs').readFileSync(IMG + `cover_p${n}.png`).toString('base64');
   s.addMedia({ type: 'video', path: IMG + `open_p${n}.mp4`, x: 0, y: 0, w: I(1920), h: I(1080), cover, objectName: `開場影片（第 ${n} 頁，點一下播放）` });
 }
@@ -151,7 +152,7 @@ function openingVideo(s, n){
 pres.addSection({ title: '封面與目錄' });
 {
   const s = pres.addSlide({ sectionTitle: '封面與目錄' });
-  s.background = { color: 'D2621A' };
+  s.background = { color: 'F59312' };
   text(s, '輔大創新創業社 課程專案｜2026 年 11 月', 120, 120, 900, 44, { size: 26, color: 'FFE6D1', name: '場合與日期' });
   s.addImage({ path: IMG + 'ys_mark_white.png', x: I(120), y: I(184), w: I(112), h: I(60), objectName: '封面_永信旅遊標誌' });
   text(s, '永信旅遊', 120, 250, 900, 170, { size: 150, bold: true, color: K.white, cs: 4, name: '封面_品牌名稱' });
@@ -300,7 +301,7 @@ contentSlide({ sub: 0, chip: '開場痛點｜①破冰與自我介紹', title: '
   [['客群', '說不出想去哪的年輕客'], ['證據', '24 分鐘只收到官網連結'], ['時機', '團費漲，客人更怕選錯']].forEach(([l, t], i) => {
     const w = (1728 - 32) / 3, x = 96 + i * (w + 16), solid = i === 2;
     rect(s, x, 912, w, 76, { r: 38, fill: solid ? K.main : K.white, line: i === 0 ? K.pinkLine : K.main, lw: 2.2, name: `結論列${i + 1}` });
-    text(s, l, x + 34, 912, 80, 76, { size: 28, bold: true, color: solid ? 'FFE6D1' : 'D9661C', name: `結論列${i + 1}_標籤` });
+    text(s, l, x + 34, 912, 80, 76, { size: 28, bold: true, color: solid ? 'FFE6D1' : 'F59312', name: `結論列${i + 1}_標籤` });
     text(s, t, x + 120, 912, w - 140, 76, { size: 28, bold: true, color: solid ? K.white : K.ink, name: `結論列${i + 1}_文字` });
   });
   footer(s, 4, 1);
@@ -484,7 +485,7 @@ contentSlide({ sub: 5, chip: '模式實績｜⑥競爭品與成本結構', title
       text(s, items, 350, y + 16, 690, 50, { size: 30, bold: true, name: `團費區塊${i + 1}_項目` });
       text(s, ref, 350, y + 68, 690, 40, { size: 24, color: K.sub, name: `團費區塊${i + 1}_參考` });
     });
-    text(s, '永信實際比例：待業師提供（機票占比、成團人數、毛利率）', 136, 846, 920, 44, { size: 26, bold: true, color: 'D9661C', name: '團費待補說明' });
+    text(s, '永信實際比例：待業師提供（機票占比、成團人數、毛利率）', 136, 846, 920, 44, { size: 26, bold: true, color: 'F59312', name: '團費待補說明' });
     text(s, '資料：永安旅遊 2026/10/30、部落客估算 2024/3/1、工商時報 2025/8/8', 136, 900, 920, 34, { size: 20, color: K.sub, name: '資料來源1' });
     text(s, '價格帶為團隊查詢永信官網（2026/10/17）；機票漲幅：工商時報 2026/4/30', 136, 936, 920, 34, { size: 20, color: K.sub, name: '資料來源2' });
   },
@@ -563,7 +564,7 @@ contentSlide({ sub: 6, chip: '行動結論｜⑦未來藍圖與本次請求', ti
       if (i > 0) text(s, d, cx - 160, y + 70, 320, 34, { size: 22, color: tc, align: 'center', name: `金字塔第${i + 1}層_說明` });
     });
     // 目前與目標標記
-    [['目標', 1, K.main], ['目前', 3, 'D9661C']].forEach(([t, i, c]) => {
+    [['目標', 1, K.main], ['目前', 3, 'F59312']].forEach(([t, i, c]) => {
       const y = top + i * (h + g) + h / 2 - 28;
       rect(s, 840, y, 196, 56, { r: 28, fill: K.white, line: c, lw: 2.2, name: `標記_${t}` });
       text(s, `◀ ${t}`, 840, y, 196, 56, { size: 28, bold: true, color: c, align: 'center', name: `標記_${t}_文字` });
@@ -585,14 +586,14 @@ contentSlide({ sub: 6, chip: '行動結論｜⑦未來藍圖與本次請求', ti
   s.background = { color: K.bg };
   progressBar(s, 7);
   titleRow(s, '行動結論｜⑧強力結論', '一句話記住我們');
-  rect(s, 96, 330, 1728, 360, { r: 32, fill: 'D2621A', name: '願景大卡' });
+  rect(s, 96, 330, 1728, 360, { r: 32, fill: 'F59312', name: '願景大卡' });
   text(s, '一分鐘找到自己的歐洲', 136, 380, 1648, 140, { size: 96, bold: true, color: K.white, align: 'center', name: '結論_品牌標語' });
   text(s, '讓每一趟旅程，都留下下一次出發的理由', 136, 540, 1648, 70, { size: 40, color: 'FFF1E3', align: 'center', name: '結論_願景' });
   const pills = [['痛點', '說不出想去哪'], ['服務', '測驗＋LINE 接手'], ['好處', '一分鐘拿到推薦']];
   pills.forEach(([l, t], i) => {
     const x = 96 + i * 592;
     rect(s, x, 730, 544, 120, { r: 60, fill: K.white, line: i === 2 ? K.main : K.pinkLine, lw: 2.2, name: `結論膠囊${i + 1}` });
-    text(s, l, x + 40, 730, 110, 120, { size: 36, bold: true, color: 'D9661C', name: `結論膠囊${i + 1}_標籤` });
+    text(s, l, x + 40, 730, 110, 120, { size: 36, bold: true, color: 'F59312', name: `結論膠囊${i + 1}_標籤` });
     text(s, t, x + 160, 730, 360, 120, { size: 40, bold: true, name: `結論膠囊${i + 1}_文字` });
   });
   rect(s, 760, 892, 400, 80, { r: 40, fill: K.white, line: K.main, lw: 2.2, name: '提問按鈕' });
