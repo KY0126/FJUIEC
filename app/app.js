@@ -61,7 +61,13 @@ const S = Object.assign({consent:null, demo:false, ans:{}, pace:null, view:null,
   inq:[], avatar:null, region_tw:null, prefs:{}, fltDefault:null, photo:null, photoOn:false,
   intro:null, polls:[], groups:[], pendPoll:null, pendJoin:null, metoo:[], demoPoll:null, demoGroup:null},
   (()=>{try{return JSON.parse(localStorage.getItem(LS)||'{}')}catch(e){return {}}})());
-S.me = null; state.ans = S.ans || {}; if (S.pace) { state.pace = S.pace; state.view = S.view || S.pace; }
+S.me = null;
+const DEMO_VER = 4;   // 示範帳號資料版本：App 加了新功能時調高，舊手機上的示範帳號會自動補齊
+if (S.demo && S.demoVer !== DEMO_VER) {
+  Object.assign(S, { photo:'img/lin.jpg', photoOn:true, avatar:S.avatar || 'cat', region_tw:S.region_tw || '北部', nickname:S.nickname || '林雅婷', demoVer:DEMO_VER });
+  if (!S.inq || !S.inq.length) S.inq = [{ trip:'巴黎精品與甜點 10 天｜巴黎連泊、精品自由逛、購物後司機送回飯店', status:'replied', at:new Date(Date.now() - .3*864e5).toISOString() }];
+}
+state.ans = S.ans || {}; if (S.pace) { state.pace = S.pace; state.view = S.view || S.pace; }
 const _qs = new URLSearchParams(location.search), invParam = _qs.get('inv'); if (invParam) { S.inv = invParam.toUpperCase().slice(0,6); }
 if (_qs.get('poll')) S.pendPoll = _qs.get('poll').toUpperCase().slice(0,6);
 if (_qs.get('join')) S.pendJoin = _qs.get('join').toUpperCase().slice(0,6);
@@ -432,7 +438,7 @@ function welcomeView(){
 function enterDemo(){
   Object.assign(S, { consent:'demo', demo:true, prof:JSON.parse(JSON.stringify(DEMO.prof)), favs:[...DEMO.favs], cmp:[], quizDone:true,
     notes:demoNotes(), ledger:demoLedger(), buddies:[{...DEMO.buddy, buddy_id:'demo', seen:false}], nickname:DEMO.name, flt:null, region:null,
-    avatar:'cat', photo:'img/lin.jpg', photoOn:true, region_tw:'北部', prefs:{}, fltDefault:null, inq:[{trip:TRIPS[tripId('巴黎精品與甜點')].name, status:'replied', at:daysAgo(.3)}] });
+    avatar:'cat', photo:'img/lin.jpg', photoOn:true, demoVer:DEMO_VER, region_tw:'北部', prefs:{}, fltDefault:null, inq:[{trip:TRIPS[tripId('巴黎精品與甜點')].name, status:'replied', at:daysAgo(.3)}] });
   state.ans = JSON.parse(JSON.stringify(DEMO.ans)); state.pace = topPace(scores()); state.view = state.pace; save();
   toast(`已進入示範帳號：${DEMO.name}`); nav('home', true);
 }
@@ -1031,7 +1037,7 @@ function pointsView(){
 /* ===== 14 會員：個人卡、收藏、詢問、旅人檔案；齒輪進設定 ===== */
 const REGIONS_TW = ['北部','中部','南部','東部','離島'];
 const INQ_STATUS = {new:'待回覆', replied:'已回覆', quoted:'已報價', won:'已報名', lost:'已結案'};
-const APP_VER = 'v2.3（2026/11/10）';
+const APP_VER = (() => { const sc = [...document.scripts].find(x => /app\.js\?v=/.test(x.src)); return 'v2.4・' + (sc ? sc.src.split('v=')[1] : '本機'); })();
 const avatarKey = () => S.avatar || state.view || 'alice';
 const birthMonth = () => { const v = (S.prof.card_e || {}).birthMonth; return v === undefined ? null : v; };
 const memberState = () => S.demo ? 'demo' : !S.quizDone ? 'guest' : S.consent === 'yes' ? 'member' : 'trial';

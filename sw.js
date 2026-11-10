@@ -1,5 +1,5 @@
 // 讓原型可以「加入主畫面」並在網路不穩時開啟：頁面先走網路，失敗才用快取
-const CACHE = 'ys-passport-v2';
+const CACHE = 'ys-passport-v3';
 const CORE = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'];
 self.addEventListener('install', e => { self.skipWaiting(); e.waitUntil(caches.open(CACHE).then(c => c.addAll(CORE))); });
 self.addEventListener('activate', e => {
@@ -10,7 +10,7 @@ self.addEventListener('fetch', e => {
   if (req.method !== 'GET') return;
   if (req.mode === 'navigate') {
     const key = new URL(req.url); key.search = ''; key.hash = '';
-    e.respondWith(fetch(req).then(r => { const copy = r.clone(); caches.open(CACHE).then(c => c.put(key.href, copy)); return r; })
+    e.respondWith(fetch(req.url, { cache:'no-cache', credentials:'same-origin' }).then(r => { const copy = r.clone(); caches.open(CACHE).then(c => c.put(key.href, copy)); return r; })
       .catch(() => caches.match(key.href).then(hit => hit || caches.match('./index.html'))));
     return;
   }
