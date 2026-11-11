@@ -69,7 +69,7 @@ if (S.demo && S.demoVer !== DEMO_VER) {
   (S.buddies || []).forEach(b => { if (b.demo) b.card_a = JSON.parse(JSON.stringify(DEMO.buddy.card_a)); });
   S.stage = 'deciding';
   if (!S.inq || !S.inq.length) S.inq = [{ trip:'巴黎精品與甜點 10 天｜巴黎連泊、精品自由逛、購物後司機送回飯店', status:'replied', at:new Date(Date.now() - .3*864e5).toISOString() }];
-  if (S.inq && !S.inq.some(q => q.trip.startsWith('北歐極光'))) S.inq.push({ trip:TRIPS[tripId('北歐極光')].name, status:'replied', at:new Date(Date.now() - 2*864e5).toISOString() });
+  if (S.inq && !S.inq.some(q => q.trip.startsWith('北歐極光'))) S.inq.push({ trip:TRIPS.find(t => t.name.startsWith('北歐極光')).name, status:'replied', at:new Date(Date.now() - 2*864e5).toISOString() });
 }
 state.ans = S.ans || {}; if (S.pace) { state.pace = S.pace; state.view = S.view || S.pace; }
 const _qs = new URLSearchParams(location.search), invParam = _qs.get('inv'); if (invParam) { S.inv = invParam.toUpperCase().slice(0,6); }
