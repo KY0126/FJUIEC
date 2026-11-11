@@ -639,42 +639,61 @@ videoSlide('close');
     96, 640, 360, 130, { size: 24, valign: 'top', name: 'RFM_對應說明' });
   // 放大線與框
   s.addShape(pres.shapes.LINE, { x: I(426), y: I(300), w: I(94), h: I(-52), line: { color: K.main, width: 2, dashType: 'dash' }, objectName: '放大線上' });
-  s.addShape(pres.shapes.LINE, { x: I(426), y: I(356), w: I(94), h: I(542), line: { color: K.main, width: 2, dashType: 'dash' }, objectName: '放大線下' });
-  rect(s, 520, 248, 1304, 650, { r: 26, line: K.main, lw: 2, dash: 'dash', name: '放大框' });
-  text(s, '② 「最近」放大：NES 時間軸（依個人出團週期）', 556, 266, 1200, 44, { size: 28, bold: true, color: K.sub, name: 'NES_標題' });
+  s.addShape(pres.shapes.LINE, { x: I(426), y: I(356), w: I(94), h: I(400), line: { color: K.main, width: 2, dashType: 'dash' }, objectName: '放大線下' });
+  rect(s, 520, 248, 1304, 508, { r: 26, line: K.main, lw: 2, dash: 'dash', name: '放大框' });
+  text(s, '② 「最近」放大：NES 時間軸（依個人出團週期）', 556, 258, 1200, 44, { size: 28, bold: true, color: K.sub, name: 'NES_標題' });
   // 欄位
   const X0 = 680, W = [160, 160, 268, 160, 160, 160], G = 8, xs = []; let x = X0; W.forEach(w => { xs.push(x); x += w + G; });
   const heads = [['潛在客', '還沒成交', 'FFFFFF', '7A6E66', 'C9C0B4'], ['N 新顧客', '第一次出團', 'E6EEF5', NAVY], ['E0 主力', '2 倍週期內有回來', K.main, 'FFFFFF'],
                  ['S1 瞌睡', '超過 2 倍', K.pinkL, '7A3D00'], ['S2 半睡', '超過 2.5 倍', 'F3E9DD', '6E5A45'], ['S3 沉睡', '超過 3 倍', 'E6E2DC', '5E584F']];
   heads.forEach(([b, m, bg, fg, dl], i) => {
-    rect(s, xs[i], 324, W[i], 92, { r: 14, fill: bg, line: dl, lw: dl ? 2 : 0, dash: dl ? 'dash' : undefined, name: `NES_${b}` });
-    text(s, b, xs[i], 330, W[i], 46, { size: 26, bold: true, color: fg, align: 'center', name: `NES_${b}_名` });
-    text(s, m, xs[i], 374, W[i], 32, { size: 18, color: fg, align: 'center', name: `NES_${b}_說明` });
+    rect(s, xs[i], 306, W[i], 84, { r: 14, fill: bg, line: dl, lw: dl ? 2 : 0, dash: dl ? 'dash' : undefined, name: `NES_${b}` });
+    text(s, b, xs[i], 310, W[i], 42, { size: 26, bold: true, color: fg, align: 'center', name: `NES_${b}_名` });
+    text(s, m, xs[i], 352, W[i], 30, { size: 18, color: fg, align: 'center', name: `NES_${b}_說明` });
   });
-  s.addShape(pres.shapes.LINE, { x: I(X0), y: I(452), w: I(x - G - X0), h: 0, line: { color: K.main, width: 4, endArrowType: 'triangle' }, objectName: '時間軸' });
+  s.addShape(pres.shapes.LINE, { x: I(X0), y: I(420), w: I(x - G - X0), h: 0, line: { color: K.main, width: 4, endArrowType: 'triangle' }, objectName: '時間軸' });
   [['1×', xs[2]], ['2×', xs[3]], ['2.5×', xs[4]], ['3×', xs[5]]].forEach(([t, tx]) => {
-    rect(s, tx - 34, 430, 64, 40, { fill: K.bg, name: `刻度底_${t}` });
-    text(s, t, tx - 34, 430, 64, 40, { size: 22, bold: true, color: '8A3C0A', align: 'center', name: `刻度_${t}` });
+    rect(s, tx - 34, 400, 64, 40, { fill: K.bg, name: `刻度底_${t}` });
+    text(s, t, tx - 34, 400, 64, 40, { size: 22, bold: true, color: '8A3C0A', align: 'center', name: `刻度_${t}` });
   });
   // 泳道
   const lanes = [['VIP', K.pinkL, '8A3C0A', ['—', '專屬顧問接手', '新團優先通知', '顧問親自聯絡', '歡迎回來禮遇', '回顧足跡＋專案']],
                  ['一般', 'EFEBE7', '5E584F', ['一分鐘測驗\nLINE 承接', '推第二趟\n邀旅伴', '角色推薦新團', 'LINE 角色推薦', '生日卡', '低頻訊息，不追']]];
   lanes.forEach(([n, bg, fg, cells], li) => {
-    const y = 484 + li * 172;
-    rect(s, 556, y, 112, 160, { r: 14, fill: bg, name: `泳道_${n}` });
-    text(s, n, 556, y, 112, 160, { size: 30, bold: true, color: fg, align: 'center', name: `泳道_${n}_名` });
+    const y = 450 + li * 152;
+    rect(s, 556, y, 112, 140, { r: 14, fill: bg, name: `泳道_${n}` });
+    text(s, n, 556, y, 112, 140, { size: 30, bold: true, color: fg, align: 'center', name: `泳道_${n}_名` });
     cells.forEach((c, i) => {
       const hot = li === 0 && i === 3, dash = i === 0;
-      rect(s, xs[i], y, W[i], 160, { r: 14, fill: hot ? K.main : K.white, line: hot ? K.main : (dash ? 'C9C0B4' : 'ECE2D8'), lw: 2, dash: dash ? 'dash' : undefined, name: `動作_${n}_${heads[i][0]}` });
-      text(s, c, xs[i] + 6, y + (hot ? 20 : 0), W[i] - 12, hot ? 80 : 160, { size: 21, bold: hot, color: hot ? K.white : (c === '—' ? 'C9C0B4' : (i === 5 && li === 1 ? '9A917F' : K.ink)), align: 'center', name: `動作_${n}_${heads[i][0]}_文字` });
-      if (hot) { rect(s, xs[i] + 12, y + 100, W[i] - 24, 40, { r: 8, fill: K.white, name: '最划算標籤' }); text(s, '最划算喚醒點', xs[i] + 12, y + 100, W[i] - 24, 40, { size: 19, bold: true, color: '8A3C0A', align: 'center', name: '最划算標籤文字' }); }
+      rect(s, xs[i], y, W[i], 140, { r: 14, fill: hot ? K.main : K.white, line: hot ? K.main : (dash ? 'C9C0B4' : 'ECE2D8'), lw: 2, dash: dash ? 'dash' : undefined, name: `動作_${n}_${heads[i][0]}` });
+      text(s, c, xs[i] + 6, y + (hot ? 14 : 0), W[i] - 12, hot ? 70 : 140, { size: 21, bold: hot, color: hot ? K.white : (c === '—' ? 'C9C0B4' : (i === 5 && li === 1 ? '9A917F' : K.ink)), align: 'center', name: `動作_${n}_${heads[i][0]}_文字` });
+      if (hot) { rect(s, xs[i] + 12, y + 86, W[i] - 24, 38, { r: 8, fill: K.white, name: '最划算標籤' }); text(s, '最划算喚醒點', xs[i] + 12, y + 86, W[i] - 24, 38, { size: 19, bold: true, color: '8A3C0A', align: 'center', name: '最划算標籤文字' }); }
     });
   });
-  text(s, [{ text: '→ 每個人都在這條線上往右走；推哪一團依' }, { text: '旅行風格角色', options: { color: '8A3C0A' } }, { text: '決定' }], 556, 836, 1240, 44, { size: 25, bold: true, name: '時間軸結論' });
-  text(s, '倍數（2／2.5／3×）、VIP 切點為示意，待永信 ERP：出發日、團費、是否取消（排除 2020–2022）；只出團一次者先用全體中位數週期', 96, 1000, 1500, 44, { size: 22, color: K.sub, name: '附錄_資料說明' });
-  rect(s, 1610, 1004, 84, 38, { r: 8, line: 'C2410C', lw: 2, name: '示意標籤' });
-  text(s, '示意', 1610, 1004, 84, 38, { size: 20, bold: true, color: 'C2410C', align: 'center', name: '示意標籤文字' });
-  text(s, '附錄 A', 1700, 1000, 124, 44, { size: 24, color: K.sub, align: 'right', name: '頁碼' });
+  // 例子在格子裡的位置（名字小標）
+  [['林雅婷', 1, 0], ['陳建宏', 0, 3], ['李小姐', 1, 3]].forEach(([nm, li, ci]) => {
+    const cx = xs[ci] + W[ci] - 98, cy = 450 + li * 152 - 16;
+    rect(s, cx, cy, 92, 32, { r: 16, fill: NAVY, name: `例子標記_${nm}` });
+    text(s, nm, cx, cy, 92, 32, { size: 18, bold: true, color: K.white, align: 'center', name: `例子標記_${nm}_文字` });
+  });
+  // ③ 舉例
+  text(s, '③ 舉例：三位客人怎麼歸格（示意）　→ 同一階段，VIP 和一般做的事不同；推哪一團依旅行風格角色', 96, 776, 1728, 40, { size: 24, bold: true, color: K.sub, name: '舉例_標題' });
+  const EX = [['林雅婷', '28 歲・主要客群', '潛在客', '做完測驗、還沒報名', '沒有訂單 → 潛在客（不算 RFM）', '24 小時內 LINE 推 3 團'],
+              ['陳建宏', '56 歲・次要客群', 'VIP × S1 瞌睡', '出團 2 次（間隔 14 個月）、累計 26 萬、距今 30 個月', '次數中＋金額中 → VIP；30 ÷ 14＝2.1 倍 → S1', '顧問 14 天內親自聯絡'],
+              ['李小姐', '示意客人', '一般 × S1 瞌睡', '出團 1 次、9 萬；距今 40 個月', '次數低＋金額低 → 一般；用中位數 18 個月：40 ÷ 18＝2.2 倍 → S1', 'LINE 角色推薦＋請假試算']];
+  EX.forEach(([nm, who, cell, data, calc, act], i) => {
+    const x = 96 + i * 584, w = 560, y = 822, hot = i === 1;
+    rect(s, x, y, w, 168, { r: 18, fill: K.white, line: hot ? K.main : 'ECE2D8', lw: 2.2, name: `舉例${i + 1}` });
+    text(s, [{ text: nm, options: { bold: true, fontSize: P(28) } }, { text: '　' + who, options: { color: K.sub, fontSize: P(20) } }], x + 20, y + 8, 330, 40, { size: 28, name: `舉例${i + 1}_名` });
+    rect(s, x + w - 200, y + 12, 184, 34, { r: 17, fill: hot ? K.main : (i === 0 ? 'FFFFFF' : 'EFEBE7'), line: i === 0 ? 'C9C0B4' : undefined, lw: 1.5, dash: i === 0 ? 'dash' : undefined, name: `舉例${i + 1}_結果底` });
+    text(s, cell, x + w - 200, y + 12, 184, 34, { size: 19, bold: true, color: hot ? K.white : K.ink, align: 'center', name: `舉例${i + 1}_結果` });
+    text(s, [{ text: '資料　', options: { color: K.sub } }, { text: data, options: { breakLine: true } }, { text: '判斷　', options: { color: K.sub } }, { text: calc, options: { breakLine: true } }, { text: '動作　', options: { color: K.sub } }, { text: act, options: { bold: true, color: '8A3C0A' } }],
+      x + 20, y + 52, w - 40, 110, { size: 19, valign: 'top', ls: 1.2, name: `舉例${i + 1}_內容` });
+  });
+  text(s, '倍數（2／2.5／3×）、VIP 切點、例子數字皆為示意，待永信 ERP：出發日、團費、是否取消（排除 2020–2022）', 96, 1004, 1500, 40, { size: 22, color: K.sub, name: '附錄_資料說明' });
+  rect(s, 1610, 1006, 84, 36, { r: 8, line: 'C2410C', lw: 2, name: '示意標籤' });
+  text(s, '示意', 1610, 1006, 84, 36, { size: 20, bold: true, color: 'C2410C', align: 'center', name: '示意標籤文字' });
+  text(s, '附錄 A', 1700, 1002, 124, 40, { size: 24, color: K.sub, align: 'right', name: '頁碼' });
   s.addNotes([
     '【附錄 A・不算頁數】被問到「老客怎麼分群、門檻怎麼定」時才翻到這頁。',
     '【講法】看客人三個指標：最近、次數、金額（RFM）。次數＋金額分出 VIP 和一般；「最近」放大成 NES 時間軸，依每個人自己的出團週期，分成 N 新顧客、E0 主力、S1 瞌睡、S2 半睡、S3 沉睡。在 S1 瞌睡時就叫醒，比等到 S3 沉睡再喚回便宜。還沒成交的潛在客用一分鐘測驗承接。',
@@ -687,6 +706,7 @@ videoSlide('close');
     '【提前聯絡】旅客多在出發前 2–4 個月報名：預估下次出發月＝上次出發月＋個人週期，提前 3 個月聯絡，優先於上面的階段規則。',
     '【不打擾】每人每月最多 2 則行銷訊息；VIP 每季最多 1 通顧問電話；取消訂閱只保留交易通知。',
     '【怎麼看有沒有效】S1 喚醒率（6 個月內詢價或報名，VIP／一般分開）、每喚回一人的成本（S1 應明顯低於 S3）、VIP 占比約 20%、取消訂閱與封鎖率。',
+    '【舉例講法】林雅婷做完測驗還沒報名，沒有訂單，是潛在客，24 小時內 LINE 推 3 團。陳建宏 2023 年 3 月、2024 年 5 月各出團一次，間隔 14 個月，累計 26 萬，次數和金額都在中以上，是 VIP；距今 30 個月，是 2.1 倍週期，落在 S1 瞌睡，所以顧問 14 天內親自打電話，這是最划算的喚醒點。李小姐只出團一次、9 萬，是一般客；只出團一次就用全體中位數 18 個月，距今 40 個月是 2.2 倍，也在 S1，但她走 LINE 角色推薦加請假試算。同樣在瞌睡，VIP 和一般的做法不同。',
     '【用詞】說「RFM 分群」或「RFM 矩陣」，不要說「RFM 漏斗」。NES 概念來自零售 CRM 常用的顧客生命週期模型（出處待補）。所有數字為示意，待永信資料校準。',
   ].join('\n'));
 })();
