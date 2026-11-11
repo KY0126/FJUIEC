@@ -62,13 +62,14 @@ const S = Object.assign({consent:null, demo:false, ans:{}, pace:null, view:null,
   intro:null, reminders:[], stage:'deciding', polls:[], groups:[], pendPoll:null, pendJoin:null, metoo:[], demoPoll:null, demoGroup:null},
   (()=>{try{return JSON.parse(localStorage.getItem(LS)||'{}')}catch(e){return {}}})());
 S.me = null;
-const DEMO_VER = 6;   // 示範帳號資料版本：App 加了新功能時調高，舊手機上的示範帳號會自動補齊
+const DEMO_VER = 7;   // 示範帳號資料版本：App 加了新功能時調高，舊手機上的示範帳號會自動補齊
 if (S.demo && S.demoVer !== DEMO_VER) {
   Object.assign(S, { photo:'img/lin.jpg', photoOn:true, avatar:S.avatar || 'cat', region_tw:S.region_tw || '北部', nickname:S.nickname || '林雅婷', demoVer:DEMO_VER });
   if (S.prof) { S.prof.card_a = S.prof.card_a || {}; if (!S.prof.card_a.leave) S.prof.card_a.leave = JSON.parse(JSON.stringify(DEMO.prof.card_a.leave)); }
   (S.buddies || []).forEach(b => { if (b.demo) b.card_a = JSON.parse(JSON.stringify(DEMO.buddy.card_a)); });
   S.stage = 'deciding';
   if (!S.inq || !S.inq.length) S.inq = [{ trip:'巴黎精品與甜點 10 天｜巴黎連泊、精品自由逛、購物後司機送回飯店', status:'replied', at:new Date(Date.now() - .3*864e5).toISOString() }];
+  if (S.inq && !S.inq.some(q => q.trip.startsWith('北歐極光'))) S.inq.push({ trip:TRIPS[tripId('北歐極光')].name, status:'replied', at:new Date(Date.now() - 2*864e5).toISOString() });
 }
 state.ans = S.ans || {}; if (S.pace) { state.pace = S.pace; state.view = S.view || S.pace; }
 const _qs = new URLSearchParams(location.search), invParam = _qs.get('inv'); if (invParam) { S.inv = invParam.toUpperCase().slice(0,6); }
@@ -452,7 +453,7 @@ function welcomeView(){
 function enterDemo(){
   Object.assign(S, { consent:'demo', demo:true, prof:JSON.parse(JSON.stringify(DEMO.prof)), favs:[...DEMO.favs], cmp:[], quizDone:true,
     notes:demoNotes(), ledger:demoLedger(), buddies:[{...DEMO.buddy, buddy_id:'demo', seen:false}], nickname:DEMO.name, flt:null, region:null,
-    avatar:'cat', photo:'img/lin.jpg', photoOn:true, demoVer:DEMO_VER, stage:'deciding', region_tw:'北部', prefs:{}, fltDefault:null, inq:[{trip:TRIPS[tripId('巴黎精品與甜點')].name, status:'replied', at:daysAgo(.3)}] });
+    avatar:'cat', photo:'img/lin.jpg', photoOn:true, demoVer:DEMO_VER, stage:'deciding', region_tw:'北部', prefs:{}, fltDefault:null, inq:[{trip:TRIPS[tripId('巴黎精品與甜點')].name, status:'replied', at:daysAgo(.3)}, {trip:TRIPS[tripId('北歐極光')].name, status:'replied', at:daysAgo(2)}] });
   state.ans = JSON.parse(JSON.stringify(DEMO.ans)); state.pace = topPace(scores()); state.view = state.pace; save();
   toast(`已進入示範帳號：${DEMO.name}`); nav('home', true);
 }
@@ -1193,7 +1194,7 @@ function meView(){
     <div class="mstats">
       <a class="op" href="#/pass/points"><b>${points()}</b><span>點數</span></a>
       <a class="op" href="#/me/favs"><b>${favN}</b><span>收藏</span></a>
-      <a class="op" href="#/me/trips"><b>${myTrips().filter(t => !ENDED.has(t.status)).length}</b><span>行程</span></a></div>
+      <a class="op" href="#/me/inquiries"><b>${inqN}</b><span>詢問</span></a></div>
     ${tripSummaryHTML()}
     <details class="box prof-box" ${c<100?'open':''}><summary><div class="sec-h"><h2>旅人檔案</h2><span class="muted small">${c}%・已得 ${CARDS.filter(doneCard).reduce((s,x)=>s+x.pts,0)} 點</span></div>
       <div class="prog"><i style="width:${c}%"></i></div></summary>
@@ -1210,6 +1211,7 @@ function meView(){
   </section>`);
   const cp = el.querySelector('#copy'); if (cp) cp.onclick = async () => { try { await navigator.clipboard.writeText(el.querySelector('#code').textContent); toast('已複製交接代碼'); } catch(e) { toast('請長按代碼複製'); } };
   el.querySelectorAll('#optin,#optin2').forEach(b => b.onclick = optIn);
+  el.querySelectorAll('[data-open-trip]').forEach(b => b.onclick = () => { S.tripHl = b.dataset.openTrip; S.tripFlt = 'all'; nav('me/trips'); });
   if (ms === 'member' && !(S.me && S.me.code)) ensureCustomer().then(() => { const p = el.querySelector('#code'); if (p && S.me) p.textContent = S.me.code; });
   return el;
 }
@@ -1685,12 +1687,19 @@ const stClass = s => ({ ask:'st-ask', plan:'st-ask', wait:'st-wait', ok:'st-ok',
 const progOf = s => ({ ask:20, plan:10, wait:40, ok:60, go:80 }[s] || 0);
 const stStyle = s => { if (s === 'ok' || s === 'go' || s === 'wait') { const c = colOf(s); return s === 'wait' ? `border:1.5px dashed ${c[1]};color:${c[2]}` : `background:${c[0]};color:${c[2]};box-shadow:inset 3px 0 0 ${c[1]}`; } return ''; };
 const nextTodo = list => list.flatMap(t => t.todos.map(x => ({ ...x, trip:t }))).filter(x => x.d >= nowMs()).sort((a, b) => a.d - b.d)[0] || null;
+function nextStep(t){
+  if (t.status === 'go') return `今天第 ${t.day} 天`;
+  if (t.status === 'ok') { const x = t.todos.find(y => y.d >= nowMs()); return x ? `<b class="red-d">${dshort(x.d)}</b> ${esc(x.t)}` : `${dshort(t.start)} 出發`; }
+  if (t.status === 'wait') return '等顧問確認名額與訂金';
+  if (t.status === 'plan') { const x = t.todos.find(y => y.d >= nowMs()); return x ? `<b class="red-d">${dshort(x.d)}</b> ${esc(x.t)}` : `預計 ${dshort(t.planStart)} 出發`; }
+  return esc(t.note || (t.sub === '已送出' ? '已送給顧問，等回覆' : '看顧問回覆'));
+}
 function tripSummaryHTML(){
-  const all = myTrips(), act = all.filter(t => !ENDED.has(t.status)), nx = nextTodo(act), lead = act.find(t => t.status === 'go') || act.find(t => t.status === 'ok') || act.find(t => t.status === 'wait') || act[0];
-  if (!all.length) return `<a class="card trip-sum op" href="#/me/trips"><div class="hd"><h3>我的行程</h3><span class="muted small">›</span></div><p class="muted small">還沒有行程。看到喜歡的團按「我想了解」，就會出現在這裡。</p></a>`;
-  return `<a class="card trip-sum op" href="#/me/trips"><div class="hd"><h3>我的行程</h3><span class="txt-a">全部 ›</span></div>
-    ${nx ? `<div class="ts-l1"><b class="red-d">${dshort(nx.d)}</b><b>${esc(nx.t)}</b></div>` : ''}
-    ${lead ? `<div class="ts-l2${nx ? '' : ' np'}"><span class="st ${stClass(lead.status)}" style="${stStyle(lead.status)}">${stLabel(lead.status === 'ask' ? lead : lead).split('・')[0]}</span><span>${shortName(lead.name)}${lead.status === 'ok' ? `・${stLabel(lead).split('・')[1]}` : lead.status === 'go' ? `・第 ${lead.day} 天` : ''}</span></div>` : ''}</a>`;
+  const act = myTrips().filter(t => !ENDED.has(t.status)).sort((a, b) => ({ go:0, ok:1, wait:2, plan:3, ask:4 }[a.status] - { go:0, ok:1, wait:2, plan:3, ask:4 }[b.status]));
+  if (!act.length) return `<a class="card trip-sum op" href="#/me/trips"><div class="hd"><h3>我的行程</h3><span class="txt-a">›</span></div><p class="muted small">還沒有行程。看到喜歡的團按「我想了解」，就會出現在這裡。</p></a>`;
+  return `<div class="card trip-sum"><a class="hd" href="#/me/trips"><h3>我的行程</h3><span class="txt-a">全部 ›</span></a>
+    ${act.slice(0, 2).map(t => `<button class="ts-row op" data-open-trip="${t.id}"><span class="ts-top"><span class="st ${stClass(t.status)}" style="${stStyle(t.status)}">${stLabel(t).split('・')[0]}</span><b>${esc(fullName(t.name))}</b></span><span class="ts-next">${nextStep(t)}</span></button>`).join('')}
+    ${act.length > 2 ? `<a class="ts-more" href="#/me/trips">還有 ${act.length - 2} 趟 ›</a>` : ''}</div>`;
 }
 /* 月曆 */
 const weekStart = ms => ms - new Date(ms).getUTCDay() * DAY;
@@ -1773,6 +1782,7 @@ function tripsView(){
     <div class="tabs2"><a href="#/me/trips" class="${ended?'':'on'}" ${ended?'':'aria-current="page"'}>接下來</a><a href="#/me/trips/ended" class="${ended?'on':''}">已結束 ${past.length}</a></div>
     ${body}</section>`);
   bindBack(el, 'me');
+  if (hl) setTimeout(() => { const c = el.querySelector('.tcard.hl'); if (c) c.scrollIntoView({ block:'center', behavior: reducedMotion() ? 'auto' : 'smooth' }); }, 120);
   S.tripHl = null;
   const re = () => { S._keepCal = true; save(); render(); };
   el.querySelectorAll('[data-tf]').forEach(b => b.onclick = () => { S.tripFlt = b.dataset.tf; re(); });

@@ -649,3 +649,8 @@ div.srow{cursor:default}
 .cseg button{border:0;background:none;font:inherit;font-size:13px;font-weight:700;color:var(--muted);padding:3px 12px;border-radius:7px;cursor:pointer}
 .cseg button[aria-pressed="true"]{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
 .cnav [data-today]{font-size:12px;border:1px solid var(--line)!important;border-radius:7px;padding:1px 7px!important;margin-left:4px}
+.trip-sum .hd{color:inherit;text-decoration:none}
+.ts-row{display:flex;flex-direction:column;gap:3px;align-items:flex-start;text-align:left;border:0;border-top:1px solid var(--line);background:none;font:inherit;color:var(--ink);padding:10px 0 2px;cursor:pointer;width:100%}
+.ts-top{display:flex;gap:8px;align-items:center}.ts-top b{font-size:14.5px}
+.ts-next{font-size:13px;color:var(--muted);line-height:1.45}
+.ts-more{font-size:13px;color:#B85C00;font-weight:700;border-top:1px solid var(--line);padding-top:8px}
