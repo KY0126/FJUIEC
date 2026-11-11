@@ -1020,6 +1020,10 @@ function teamView(){
   const el = $h(`<section class="pad team">${topbar('我的團', {home:true})}
     <div class="team-hero b3"><span>${T.trip}</span><b>${days} 天後出發</b><small>${T.date.slice(5).replace('-','/')} 出發・領隊 ${T.leader}・共 ${total} 位旅人（示範團）</small></div>
     <div class="box"><h3>集合資訊</h3><p class="small">${T.meet}</p></div>
+    <div class="box cal-sub"><div class="sec-h"><h3>整團行程加入行事曆</h3><span class="muted small">會自動更新</span></div>
+      <ul class="plain small"><li>2/16 跟主管請假提醒</li><li>2/25 繳尾款截止（示意）</li><li>3/4 19:30 行前說明會</li><li>3/18 21:30 機場集合・3/18–3/27 出團</li></ul>
+      <button class="btn1 b1" id="calSub">加入我的行事曆</button>
+      <p class="muted small">iPhone 按一下就會訂閱，顧問改時間你的行事曆跟著變；Android 先下載檔案加入。只放行程，不放你的請假天數。</p></div>
     <div class="box"><h3>領隊公告</h3><ul class="plain small">${T.notes.map(n=>`<li>${n}</li>`).join('')}</ul></div>
     <div class="box"><div class="sec-h"><h3>這團的旅人組成</h3><span class="muted small">領隊也看得到，用來安排自由時間</span></div>
       <div class="dist">${ROLE_ORDER.map(k=>`<div><span>${PACES[k].short}</span><div class="prog"><i style="width:${(T.dist[k]||0)/total*100}%"></i></div><b>${T.dist[k]||0}</b></div>`).join('')}</div></div>
@@ -1029,6 +1033,11 @@ function teamView(){
     <p class="muted small">只顯示設成「全團」的團友（${T.mates.length}/${total - 1} 位）；點對方的標籤表示「我也是」，相同的標籤會配成小隊。沒有聊天室，想多聊請私下交換 LINE。</p>
     <div id="squad"></div></section>`);
   bindBack(el, 'buddy');
+  el.querySelector('#calSub').onclick = () => {
+    const rel = 'cal/paris-0318.ics', url = new URL(rel, location.href);
+    if (/iPhone|iPad|Macintosh/.test(navigator.userAgent) && url.protocol === 'https:') { location.href = 'webcal://' + url.host + url.pathname; track('team_cal', { how:'webcal' }); return; }
+    const a = document.createElement('a'); a.href = rel; a.download = 'ys-paris-0318.ics'; document.body.append(a); a.click(); a.remove();
+    toast('已下載行事曆檔，打開就能加入'); track('team_cal', { how:'ics' }); };
   const squad = () => { const mine = new Set(it.tags), hit = {};
     S.metoo.forEach(k => { const [n, t] = k.split('|'); if (mine.has(t)) (hit[t] = hit[t] || []).push(n); });
     el.querySelector('#squad').innerHTML = Object.keys(hit).length ? `<div class="box squad">${Object.entries(hit).map(([t, ns]) => `<p>你和 <b>${ns.map(esc).join('、')}</b> 是「${t}」小隊</p>`).join('')}</div>` : ''; };
@@ -1477,6 +1486,30 @@ function leaveDates(w, L, t){   // 要請假的日期，給複製與行事曆用
   if (L.rest && !offDay(w.start + t.days*DAY, L.who)) out.push(dshort(w.start + t.days*DAY) + '（休息）');
   return out;
 }
+function leaveMap(w, L, t){   // 每一天：half／full 要請假
+  const m = new Map(); if (L.who === 'free') return m;
+  if (!offDay(w.start, L.who)) m.set(w.start, 'half');
+  for (let i = 1; i < t.days; i++) { const d = w.start + i*DAY; if (!offDay(d, L.who)) m.set(d, 'full'); }
+  if (L.rest && !offDay(w.start + t.days*DAY, L.who)) m.set(w.start + t.days*DAY, 'full');
+  return m;
+}
+function monthCal(w, L, t){
+  const lv = leaveMap(w, L, t), last = Math.max(w.end, ...lv.keys()), out = [];
+  let y = new Date(w.start).getUTCFullYear(), mo = new Date(w.start).getUTCMonth();
+  while (Date.UTC(y, mo, 1) <= last) {
+    const first = Date.UTC(y, mo, 1), n = new Date(Date.UTC(y, mo + 1, 0)).getUTCDate(), pad = new Date(first).getUTCDay(), cells = [];
+    for (let k = 0; k < pad; k++) cells.push('<i></i>');
+    for (let d = 1; d <= n; d++) { const ms = Date.UTC(y, mo, d), k = dkey(ms), c = [];
+      const hol = HOL[k] && !(k === '2027-04-30' && L.who === 'gov'), brk = L.who === 'student' && BREAKS.some(([a,b]) => ms >= dms(a) && ms <= dms(b));
+      if (offDay(ms, L.who)) c.push('off'); if (hol || brk) c.push('hol');
+      if (ms >= w.start && ms <= w.end) c.push('in'); if (ms === w.start) c.push('st'); if (ms === w.end) c.push('en');
+      if (lv.has(ms)) c.push(lv.get(ms) === 'half' ? 'lvh' : 'lvf');
+      cells.push(`<i class="${c.join(' ')}" title="${hol ? HOL[k] : ''}">${d}</i>`); }
+    out.push(`<div class="mcal"><b>${y} 年 ${mo + 1} 月</b><div class="mc-g">${[...WD].map(x => `<em>${x}</em>`).join('')}${cells.join('')}</div></div>`);
+    if (++mo > 11) { mo = 0; y++; }
+  }
+  return `<div class="mcals">${out.join('')}</div><p class="mc-key"><span class="k-in">旅行期間</span><span class="k-hol">國定假日${L.who==='student'?'／寒暑假':''}</span><span class="k-lv">要請假</span><span class="k-h">請半天</span><span class="k-se">出發／回國</span></p>`;
+}
 function leaveBox(t){
   const L = myLeave();
   if (!L) return `<div class="box lv"><h3>請假試算</h3><p>填幾題（身分、剩幾天特休、一次最多請幾天、不方便的月份），就會算出這團最省假的出發日。</p>
@@ -1484,7 +1517,7 @@ function leaveBox(t){
   const p = planFor(t, [L]);
   if (p.none) return `<div class="box lv"><h3>請假試算</h3><p class="muted">這團建議月份在行事曆已公布的範圍（到 2027 年底）之外，先問顧問團期。</p></div>`;
   if (L.who === 'free') { const w = p.alt || p.best || p.any;
-    return `<div class="box lv"><h3>出發日建議</h3><p>時間自己安排，建議<b>避開連假</b>出發，團費比較省。</p><p>${winLine(w, t, L)}</p>${lvActions(w)}${lvFoot(L)}</div>`; }
+    return `<div class="box lv"><h3>出發日建議</h3><p>時間自己安排，建議<b>避開連假</b>出發，團費比較省。</p><p>${winLine(w, t, L)}</p><div class="lv-cal">${monthCal(w, L, t)}</div>${lvActions(w)}${lvFoot(L)}</div>`; }
   const w = p.best || p.any, left = (L.who === 'work' || L.who === 'gov') && L.left != null ? L.left - w.leave : null;
   const warn = !p.ok ? `<p class="warn-t">${lvWhy(t, L).warn}；下面是最省假的日期，供你評估。</p>` : '';
   const alt = p.alt ? (() => { const d = p.alt.leave - w.leave, save = Math.round(t.from * 1e4 * (premOf(w.lg) - premOf(p.alt.lg)) / 100) * 100;
@@ -1492,7 +1525,7 @@ function leaveBox(t){
       ${save > 0 ? `<p class="small">連假團費通常較高，這個日期每人約少 <b>${save.toLocaleString()} 元</b>（示意，待永信實際價差）</p>` : ''}
       <button class="txt-btn" data-pick="alt">改用這個日期</button></div>`; })() : '';
   return `<div class="box lv"><div class="sec-h"><h3>請假試算</h3><a class="small" href="#/me/leave">修改條件</a></div>
-    ${warn}<p class="lv-main">${winLine(w, t, L)}</p>
+    ${warn}<p class="lv-main">${winLine(w, t, L)}</p><div class="lv-cal">${monthCal(w, L, t)}</div>
     ${left != null ? `<p class="small">請完特休還剩 <b>${n1(Math.max(0, left))}</b> 天${L.max != null ? `・在你一次最多 ${n1(L.max)} 天${w.leave <= L.max ? '內' : '之外'}` : ''}</p>` : ''}
     ${alt}${lvActions(w)}${lvFoot(L)}</div>`;
 }
@@ -1501,7 +1534,7 @@ const lvFoot = L => `<p class="muted small">連假依行政院 116 年辦公日�
 function bindLeave(el, t){
   const box = el.querySelector('.lv'); if (!box) return; const L = myLeave(); if (!L) return;
   let p = planFor(t, [L]), w = p.best || p.any;
-  box.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => { w = p.alt; box.querySelector('.lv-main').innerHTML = winLine(w, t, L); b.closest('.lv-alt').remove(); toast('已改用避開連假的日期'); });
+  box.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => { w = p.alt; box.querySelector('.lv-main').innerHTML = winLine(w, t, L); box.querySelector('.lv-cal').innerHTML = monthCal(w, L, t); b.closest('.lv-alt').remove(); toast('已改用避開連假的日期'); });
   box.querySelectorAll('[data-lv]').forEach(b => b.onclick = () => {
     if (!w) return;
     const name = short(t), ds = leaveDates(w, L, t);

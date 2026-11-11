@@ -562,3 +562,23 @@ div.srow{cursor:default}
 .lv-help summary{cursor:pointer;color:#B85C00;font-weight:700;font-size:14px}
 .lv-help[open]{display:flex;flex-direction:column;gap:8px}
 .lvset .seg button{font-size:13.5px}
+/* 請假月曆 */
+.mcals{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.mcal b{display:block;font-size:13px;margin-bottom:4px}
+.mc-g{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center}
+.mc-g em{font-style:normal;font-size:10.5px;color:var(--muted)}
+.mc-g i{font-style:normal;font-size:12px;line-height:24px;border-radius:6px;color:var(--ink);position:relative}
+.mc-g i.off{color:#9A917F}
+.mc-g i.hol{background:#DCE7F0;color:#00223D;font-weight:700}
+.mc-g i.in{box-shadow:inset 0 -3px 0 #F59312}
+.mc-g i.lvf{background:#F59312;color:#2B1600;font-weight:800}
+.mc-g i.lvh{background:linear-gradient(135deg,#fff 50%,#F59312 50%);font-weight:800}
+.mc-g i.st,.mc-g i.en{outline:2px solid #00223D;outline-offset:-2px}
+.mc-key{display:flex;flex-wrap:wrap;gap:10px;font-size:11.5px;color:var(--muted);margin-top:6px}
+.mc-key span::before{content:'';display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+.mc-key .k-in::before{box-shadow:inset 0 -3px 0 #F59312;background:#fff;border:1px solid var(--line)}
+.mc-key .k-hol::before{background:#DCE7F0}
+.mc-key .k-lv::before{background:#F59312}
+.mc-key .k-h::before{background:linear-gradient(135deg,#fff 50%,#F59312 50%);border:1px solid var(--line)}
+.cal-sub .btn1{width:100%}
+.mc-key .k-se::before{border:2px solid #00223D;background:#fff}
