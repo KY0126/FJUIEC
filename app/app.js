@@ -1697,7 +1697,7 @@ function nextStep(t){
 function tripSummaryHTML(){
   const act = myTrips().filter(t => !ENDED.has(t.status)).sort((a, b) => ({ go:0, ok:1, wait:2, plan:3, ask:4 }[a.status] - { go:0, ok:1, wait:2, plan:3, ask:4 }[b.status]));
   if (!act.length) return `<a class="card trip-sum op" href="#/me/trips"><div class="hd"><h3>我的行程</h3><span class="txt-a">›</span></div><p class="muted small">還沒有行程。看到喜歡的團按「我想了解」，就會出現在這裡。</p></a>`;
-  return `<div class="card trip-sum"><a class="hd" href="#/me/trips"><h3>我的行程</h3><span class="txt-a">全部 ›</span></a>
+  return `<div class="card trip-sum"><a class="hd" href="#/me/trips"><h3>我的行程</h3><span class="txt-a">看行事曆 ›</span></a>
     ${act.slice(0, 2).map(t => `<button class="ts-row op" data-open-trip="${t.id}"><span class="ts-top"><span class="st ${stClass(t.status)}" style="${stStyle(t.status)}">${stLabel(t).split('・')[0]}</span><b>${esc(fullName(t.name))}</b></span><span class="ts-next">${nextStep(t)}</span></button>`).join('')}
     ${act.length > 2 ? `<a class="ts-more" href="#/me/trips">還有 ${act.length - 2} 趟 ›</a>` : ''}</div>`;
 }
