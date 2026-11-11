@@ -148,7 +148,7 @@ function render(){
   if (GATED.has(r[0]) && !S.quizDone) { S.after = r.join('/'); save(); return nav('welcome', true); }
   const views = {home:()=>S.quizDone?homeView():homeNewView(), welcome:welcomeView, quiz:quizView, result:resultView,
     explore:()=>r[1]==='map'?mapView():exploreView(), trip:tripView, compare:compareView, buddy:buddyView, pass:()=>r[1]==='points'?pointsView():passView(),
-    me:()=>({card:()=>cardQView(r[2], +r[3]||0), edit:editView, settings:settingsView, favs:favsView, inquiries:inquiriesView, legal:()=>legalView(r[2]), intro:introView, leave:leaveView}[r[1]] || meView)(), team:teamView, inbox:inboxView, advisor:advisorView};
+    me:()=>({card:()=>cardQView(r[2], +r[3]||0), edit:editView, settings:settingsView, favs:favsView, inquiries:inquiriesView, legal:()=>legalView(r[2]), intro:introView, leave:leaveView, trips:tripsView, colors:colorsView}[r[1]] || meView)(), team:teamView, inbox:inboxView, advisor:advisorView};
   onScroll = null; clearInterval(flipTimer);
   const v = (views[r[0]] || views.home)(), goingBack = dir === 'back';
   v.classList.add('screen', goingBack ? 'in-back' : 'in-fwd'); dir = 'fwd';
@@ -1193,7 +1193,8 @@ function meView(){
     <div class="mstats">
       <a class="op" href="#/pass/points"><b>${points()}</b><span>點數</span></a>
       <a class="op" href="#/me/favs"><b>${favN}</b><span>收藏</span></a>
-      <a class="op" href="#/me/inquiries"><b>${inqN}</b><span>詢問</span></a></div>
+      <a class="op" href="#/me/trips"><b>${myTrips().filter(t => !ENDED.has(t.status)).length}</b><span>行程</span></a></div>
+    ${tripSummaryHTML()}
     <details class="box prof-box" ${c<100?'open':''}><summary><div class="sec-h"><h2>旅人檔案</h2><span class="muted small">${c}%・已得 ${CARDS.filter(doneCard).reduce((s,x)=>s+x.pts,0)} 點</span></div>
       <div class="prog"><i style="width:${c}%"></i></div></summary>
       <div class="cards5">${CARDS.map(card => { const ok = doneCard(card), v = S.prof[card.k] || {}, n = card.qs.filter(q => v[q.id] !== undefined && !(Array.isArray(v[q.id]) && !v[q.id].length)).length;
@@ -1203,7 +1204,6 @@ function meView(){
     <div class="menu">
       <a class="op" href="#/me/intro">${ic('chat')}<span>我的自我介紹</span><em>${S.intro?({team:'只給領隊',all:'全團公開',none:'不公開'}[S.intro.vis]):'用作答自動產生'}</em>${ic('chev','end')}</a>
       <a class="op" href="#/me/leave">${ic('pass')}<span>請假條件</span><em>${myLeave()?WHO.find(x=>x[0]===myLeave().who)[1]:'算出要請幾天'}</em>${ic('chev','end')}</a>
-      <a class="op" href="#/team">${ic('star')}<span>我的團</span><em>${S.demo && S.stage === 'confirmed' ? '巴黎 3/18 已成團' : '成團後開啟'}</em>${ic('chev','end')}</a>
       <a class="op" href="#/buddy">${ic('buddy')}<span>旅伴</span>${S.buddies.length?`<em>${S.buddies.length} 位</em>`:''}${ic('chev','end')}</a>
       <a class="op" href="#/inbox">${ic('bell')}<span>通知</span>${unread()?`<em>${unread()} 則未讀</em>`:''}${ic('chev','end')}</a>
       <a class="op" href="#/me/settings">${ic('gear')}<span>設定與隱私</span>${ic('chev','end')}</a></div>
@@ -1288,6 +1288,7 @@ function settingsView(){
     </div>
     <h2 class="sh">推薦偏好</h2><div class="sgroup">
       ${row('#/me','管理旅人檔案', `完成 ${completion()}%`)}
+      ${row('#/me/colors','行程顏色', (Object.entries(THEMES).find(([, [, m]]) => COLOR_CATS.every(([k]) => m[k] === tripColors()[k])) || [0,['自訂']])[1][0])}
       ${row('#/me/leave','請假條件', myLeave()?leaveSummary():'填了就能在行程頁看到要請幾天')}
       <div class="srow col"><span>探索頁預設篩選<small>打開探索時自動套用</small></span><div class="chips-s">${[['noshop','無購物站'],['cool','避開炎熱'],['walk','走路不累']].map(([k,l])=>`<button class="fc ${dflt.includes(k)?'on':''}" data-df="${k}">${l}</button>`).join('')}</div></div>
       <button class="srow" id="redo"><span>重新做測驗<small>角色與推薦會重算；旅人檔案保留</small></span>${ic('chev','end')}</button>
@@ -1639,6 +1640,187 @@ function leaveSummary(t){ const L = myLeave(); if (!L) return null;
   if (L.rest) parts.push('回國想多休一天');
   if (t) { const p = planFor(t, [L]); if (p.best) parts.push(`想${p.best.lg ? '搭' + p.best.lg[0] : '平日出發'}（${dshort(p.best.start)} 出發）`); }
   return parts.join('，'); }
+
+/* ===== 我的行程：月曆＋行程卡片同一頁（接下來／已結束、狀態橫條、點日期看詳情、可自訂顏色） ===== */
+const PAL = { peach:['#FEF0E1','#F59312','#7A3D00','淺橘'], sky:['#E6EEF5','#00223D','#00223D','淺藍'], mint:['#E9F3E6','#5E9A55','#2F5A29','淺綠'], lilac:['#EFE8F6','#8B6BB8','#4F3A73','淺紫'],
+  rose:['#FBE7EF','#C2557F','#7A2A4B','淺粉'], sand:['#FBF3DC','#C9A227','#6E5710','淺黃'], stone:['#F0EDE8','#8B847A','#5E584F','淺灰'], blush:['#FCE9E6','#D0281C','#8E1E14','淺紅'] };
+const TRIP_PAL = ['peach','sky','mint','lilac','rose','sand','stone'], TODO_PAL = ['blush','sand','lilac','mint','sky','peach','rose','stone'];
+const COLOR_CATS = [['ok','已成團','trip'],['wait','等成團','trip'],['go','旅行中','trip'],['leave','請假','todo'],['pay','尾款','todo'],['event','說明會・集合','todo']];
+const THEMES = { ys:['永信橘',{ ok:'peach', wait:'peach', go:'sky', leave:'blush', pay:'blush', event:'blush' }], sea:['海洋藍',{ ok:'sky', wait:'sky', go:'mint', leave:'blush', pay:'sand', event:'lilac' }],
+  forest:['森林綠',{ ok:'mint', wait:'mint', go:'sky', leave:'blush', pay:'sand', event:'peach' }], calm:['低調灰',{ ok:'stone', wait:'stone', go:'sky', leave:'blush', pay:'stone', event:'stone' }] };
+const tripColors = () => Object.assign({}, THEMES.ys[1], (S.prefs && S.prefs.colors) || {});
+const colOf = cat => PAL[tripColors()[cat]] || PAL.stone;
+const SHORTS = { '巴黎精品與甜點':'巴黎甜點' };
+const shortName = name => { const b = name.split('｜')[0].replace(/\s*\d+\s*天.*$/, ''); return SHORTS[b] || b.slice(0, 4); };
+const nowMs = () => S.previewGo ? dms('2027-03-20') : todayMs();
+const fullName = n => n.split('｜')[0];
+/* 行程資料：示範帳號用示意資料並跟著「挑團中／已成團」切換；會員用詢問紀錄＋請假提醒 */
+function myTrips(){
+  const out = [];
+  if (S.demo) {
+    const paris = TRIPS[tripId('巴黎精品與甜點')].name, conf = S.stage === 'confirmed';
+    out.push(conf ? { id:'paris', name:paris, status:'ok', start:dms('2027-03-18'), end:dms('2027-03-27'), meta:'領隊 王領隊・同團 12 人（示範團）', team:true,
+      todos:[{ d:dms('2027-02-16'), cat:'leave', t:'跟主管請假', k:'請假' }, { d:dms('2027-02-25'), cat:'pay', t:'繳尾款（示意）', k:'尾款' },
+             { d:dms('2027-03-04'), cat:'event', t:'行前說明會（線上）', k:'說明會', tm:'19:30' }, { d:dms('2027-03-18'), cat:'event', t:'機場集合', k:'集合', tm:'21:30', at:'桃園機場第二航廈・永信櫃檯（示意）' }] }
+      : { id:'paris', name:paris, status:'ask', sub:'顧問已回覆', note:'顧問：3/18 出發還有 6 個名額，連泊飯店都有冷氣。', todos:[] });
+    out.push({ id:'nordic', name:TRIPS[tripId('北歐極光')].name, status:'ask', sub:'顧問已回覆', note:'顧問：2 月團還有 4 個名額，要幫你保留嗎？', todos:[] });
+    out.push({ id:'atcz', name:TRIPS[tripId('奧捷慢遊')].name, status:'done', start:dms('2025-10-08'), end:dms('2025-10-17'), note:'填回饋拿 200 點・點亮護照足跡', todos:[] });
+  } else {
+    (S.inq || []).forEach((q, k) => { const st = { won:'wait', lost:'x' }[q.status] || 'ask';
+      out.push({ id:'q' + k, name:q.trip, status:st, sub:{ new:'已送出', replied:'顧問已回覆', quoted:'已報價' }[q.status] || '', todos:[] }); });
+  }
+  (S.reminders || []).forEach(r => { let t = out.find(x => x.name === r.trip || x.name.startsWith(fullName(r.trip)));
+    if (!t) { t = { id:'r' + r.trip, name:r.trip, status:'plan', sub:'自己規劃中', planStart:dms(r.depart), todos:[] }; out.push(t); }
+    if (!t.todos.some(x => x.cat === 'leave')) t.todos.push({ d:dms(r.on), cat:'leave', t:`跟主管請假（${dshort(dms(r.depart))} 出發）`, k:'請假' }); });
+  const now = nowMs();
+  out.forEach(t => { if (t.start && t.status === 'ok' && now >= t.start && now <= t.end) { t.status = 'go'; t.day = Math.round((now - t.start) / DAY) + 1; }
+    if (t.start && t.status === 'ok' && now > t.end) t.status = 'done'; t.todos.sort((a, b) => a.d - b.d); });
+  return out;
+}
+const ENDED = new Set(['done','x']);
+function stLabel(t){ const now = nowMs();
+  return { ask:`詢問中${t.sub ? '・' + t.sub : ''}`, plan:'自己規劃中', wait:'已報名・等成團', ok:`已成團・${Math.max(0, Math.round((t.start - now) / DAY))} 天後出發`,
+    go:`旅行中・第 ${t.day} 天`, done:`已回國・${t.end ? dshort(t.end) : ''}`, x:'未成團' }[t.status]; }
+const stClass = s => ({ ask:'st-ask', plan:'st-ask', wait:'st-wait', ok:'st-ok', go:'st-go', done:'st-done', x:'st-x' }[s]);
+const progOf = s => ({ ask:20, plan:10, wait:40, ok:60, go:80 }[s] || 0);
+const stStyle = s => { if (s === 'ok' || s === 'go' || s === 'wait') { const c = colOf(s); return s === 'wait' ? `border:1.5px dashed ${c[1]};color:${c[2]}` : `background:${c[0]};color:${c[2]};box-shadow:inset 3px 0 0 ${c[1]}`; } return ''; };
+const nextTodo = list => list.flatMap(t => t.todos.map(x => ({ ...x, trip:t }))).filter(x => x.d >= nowMs()).sort((a, b) => a.d - b.d)[0] || null;
+function tripSummaryHTML(){
+  const all = myTrips(), act = all.filter(t => !ENDED.has(t.status)), nx = nextTodo(act), lead = act.find(t => t.status === 'go') || act.find(t => t.status === 'ok') || act.find(t => t.status === 'wait') || act[0];
+  if (!all.length) return `<a class="card trip-sum op" href="#/me/trips"><div class="hd"><h3>我的行程</h3><span class="muted small">›</span></div><p class="muted small">還沒有行程。看到喜歡的團按「我想了解」，就會出現在這裡。</p></a>`;
+  return `<a class="card trip-sum op" href="#/me/trips"><div class="hd"><h3>我的行程</h3><span class="txt-a">全部 ›</span></div>
+    ${nx ? `<div class="ts-l1"><b class="red-d">${dshort(nx.d)}</b><b>${esc(nx.t)}</b></div>` : ''}
+    ${lead ? `<div class="ts-l2${nx ? '' : ' np'}"><span class="st ${stClass(lead.status)}" style="${stStyle(lead.status)}">${stLabel(lead.status === 'ask' ? lead : lead).split('・')[0]}</span><span>${shortName(lead.name)}${lead.status === 'ok' ? `・${stLabel(lead).split('・')[1]}` : lead.status === 'go' ? `・第 ${lead.day} 天` : ''}</span></div>` : ''}</a>`;
+}
+/* 月曆 */
+const weekStart = ms => ms - new Date(ms).getUTCDay() * DAY;
+function dayItems(ms, list){
+  const out = [];
+  list.forEach(t => { t.todos.filter(x => x.d === ms).forEach(x => out.push({ kind:'todo', x, t }));
+    if (t.start && ms >= t.start && ms <= t.end) out.push({ kind:'span', t, first:ms === t.start, last:ms === t.end, n:Math.round((ms - t.start) / DAY) + 1 }); });
+  return out.sort((a, b) => (a.kind === 'todo' ? 0 : 1) - (b.kind === 'todo' ? 0 : 1));
+}
+function holName(ms){ const k = dkey(ms), L = LONG.find(([, a]) => a === k); if (L) return L[0].replace(/\s*連假/, '');
+  if (LONG.some(([, a, b]) => ms > dms(a) && ms <= dms(b))) return ''; return HOL[k] || ''; }
+const isRedDay = ms => { const w = new Date(ms).getUTCDay(); return w === 0 || w === 6 || !!HOL[dkey(ms)]; };
+function weekRow(ws, list, opts = {}){
+  const days = [...Array(7)].map((_, i) => ws + i*DAY), spans = [], todos = [];
+  list.forEach(t => { if (!t.start || t.end < ws || t.start > ws + 6*DAY) return; const a = Math.max(t.start, ws), b = Math.min(t.end, ws + 6*DAY);
+    spans.push({ t, c1:(a - ws) / DAY + 1, c2:(b - ws) / DAY + 2, label:a === t.start }); });
+  days.forEach((d, i) => { const its = dayItems(d, list), td = its.filter(x => x.kind === 'todo'), sp = its.find(x => x.kind === 'span' && x.first);
+    if (td.length || sp) todos.push({ i, td, more:td.length + (sp ? 1 : 0) - 1 - (sp && td.length ? 0 : 0) }); });
+  const rows = ['22px','13px']; if (spans.length) rows.push('18px'); if (todos.some(x => x.td.length)) rows.push('18px');
+  const spanRow = 3, tdRow = spans.length ? 4 : 3;
+  let h = days.map((d, i) => { const out = d < (opts.monthStart || -Infinity) || d > (opts.monthEnd || Infinity);
+    const cls = ['cn', isRedDay(d) ? 'r' : '', d === nowMs() ? 'today' : '', d === opts.ring ? 'ring' : '', out ? 'out' : ''].join(' ');
+    return `<button class="${cls}" style="grid-column:${i+1}" data-day="${d}" aria-label="${dshort(d)}">${new Date(d).getUTCDate()}</button>`; }).join('');
+  days.forEach((d, i) => { const hn = holName(d), its = dayItems(d, list), n = its.filter(x => x.kind === 'todo').length;
+    const more = n > 1 ? `＋${n - 1}` : ''; if (hn || more) h += `<span class="ch ${hn ? 'r' : ''}" style="grid-column:${i+1}">${hn || more}</span>`; });
+  spans.forEach(s => { const c = colOf(s.t.status === 'go' ? 'go' : s.t.status === 'wait' ? 'wait' : s.t.status === 'done' ? 'done' : 'ok');
+    const st = s.t.status === 'wait' ? `border:1.3px dashed ${c[1]};color:${c[2]};background:#fff` : s.t.status === 'done' ? `background:#F0EDE8;color:#8B847A` : `background:${c[0]};color:${c[2]};${s.label ? `box-shadow:inset 3px 0 0 ${c[1]}` : ''}`;
+    h += `<span class="cev" style="grid-row:${spanRow};grid-column:${s.c1}/${s.c2};${st}">${s.label ? shortName(s.t.name) : '&nbsp;'}</span>`; });
+  todos.forEach(x => { if (!x.td.length) return; const it = x.td[0].x, c = colOf(it.cat);
+    h += `<span class="cev" style="grid-row:${tdRow};grid-column:${x.i+1};background:${c[0]};color:${c[2]};box-shadow:inset 3px 0 0 ${c[1]}">${it.k}</span>`; });
+  const fw = opts.fw != null && opts.fw >= ws && opts.fw < ws + 7*DAY;
+  return `<div class="cwk${fw ? ' focus' : ''}" style="grid-template-rows:${rows.join(' ')}">${h}</div>`;
+}
+function calHTML(list){
+  const cs = S.tripCal = Object.assign({ open:false, focus:null, ring:null }, S.tripCal || {});
+  const focus = cs.focus || nowMs(), hd = `<div class="cdh">${[...WD].map((x, i) => `<span class="${i===0||i===6?'r':''}">${x}</span>`).join('')}</div>`;
+  if (!cs.open) {
+    const ws = weekStart(focus), has = list.some(t => t.todos.some(x => x.d >= ws && x.d < ws + 7*DAY) || (t.start && t.start <= ws + 6*DAY && t.end >= ws));
+    const nx = nextTodo(list.filter(t => !ENDED.has(t.status))) || null;
+    const nxSpan = list.filter(t => t.start && t.start > ws + 6*DAY && !ENDED.has(t.status)).sort((a,b) => a.start - b.start)[0];
+    const target = nx && (!nxSpan || nx.d <= nxSpan.start) ? { d:nx.d, t:nx.t } : nxSpan ? { d:nxSpan.start, t:shortName(nxSpan.name) + ' 出發' } : null;
+    return `<div class="ccard"><div class="ctop"><span>${ws <= nowMs() && nowMs() < ws + 7*DAY ? '本週・' : ''}${dshort(ws)}–${dshort(ws + 6*DAY)}</span><span class="cnav"><button data-wk="-1" aria-label="上一週">‹</button><button data-wk="1" aria-label="下一週">›</button><button class="txt-btn" id="calTg">展開月曆 ▾</button></span></div>
+      ${hd}${weekRow(ws, list, { ring:cs.ring })}
+      ${!has ? `<div class="cempty"><span>這週沒有安排</span>${target ? `<button class="txt-btn" data-goto="${target.d}">下一件 <b class="red-d">${dshort(target.d)}</b> ${esc(target.t)} ›</button>` : ''}</div>` : ''}</div>`;
+  }
+  const f = new Date(focus), y = f.getUTCFullYear(), m = f.getUTCMonth(), m0 = Date.UTC(y, m, 1), m1 = Date.UTC(y, m + 1, 0);
+  let rows = ''; for (let ws = weekStart(m0); ws <= m1; ws += 7*DAY) rows += weekRow(ws, list, { ring:cs.ring, monthStart:m0, monthEnd:m1, fw:cs.ring || (nowMs() >= m0 && nowMs() <= m1 ? nowMs() : m0) });
+  return `<div class="ccard"><div class="ctop"><span class="cnav"><button data-mo="-1" aria-label="上個月">‹</button></span><b>${y} 年 ${m + 1} 月</b><span class="cnav"><button data-mo="1" aria-label="下個月">›</button><button class="txt-btn" id="calTg">收合 ▴</button></span></div>${hd}${rows}</div>`;
+}
+function tripCard(t, hl){
+  const nx = t.todos.filter(x => x.d >= nowMs()).slice(0, 2), st = stLabel(t);
+  const dates = t.start ? `${dshort(t.start)}–${dshort(t.end)}` : t.planStart ? `預計 ${dshort(t.planStart)} 出發` : '日期未定';
+  const link = t.team ? `<a class="go-l" href="#/team">團友牆與整團行事曆 ›</a>` : S.demo && t.id === 'paris' ? `<a class="go-l" href="#/team">成團後開啟團友牆 ›</a>` : t.status === 'ask' ? `<a class="go-l" href="#/me/inquiries">看詢問紀錄 ›</a>` : '';
+  return `<div class="tcard ${hl ? 'hl' : ''}" data-trip="${t.id}"><div class="tt"><span class="st ${stClass(t.status)}" style="${stStyle(t.status)}">${st}</span><span class="muted small">${dates}</span></div>
+    <h4>${esc(fullName(t.name))}</h4>${t.meta ? `<p class="muted small">${t.meta}</p>` : ''}
+    ${progOf(t.status) ? `<div class="thin"><i style="width:${progOf(t.status)}%;background:${t.status==='ask'||t.status==='plan'?'#AFC0CE':colOf(t.status==='go'?'go':'ok')[1]}"></i></div>` : ''}
+    ${nx.map(x => `<button class="todo-b" data-todo="${x.d}"><b class="red-d">${dshort(x.d)}</b>${x.tm ? ` ${x.tm}` : ''}　${esc(x.t)}</button>`).join('')}
+    ${t.note ? `<p class="small muted">${esc(t.note)}</p>` : ''}${link}</div>`;
+}
+function tripsView(){
+  const ended = route()[2] === 'ended', all = myTrips(), act = all.filter(t => !ENDED.has(t.status)), past = all.filter(t => ENDED.has(t.status));
+  const flt = S.tripFlt || 'all', cnt = k => act.filter(t => k === 'ok' ? (t.status === 'ok' || t.status === 'go') : k === 'ask' ? (t.status === 'ask' || t.status === 'plan') : t.status === k).length;
+  const shown = flt === 'all' ? act : act.filter(t => flt === 'ok' ? (t.status === 'ok' || t.status === 'go') : flt === 'ask' ? (t.status === 'ask' || t.status === 'plan') : t.status === flt);
+  const go = shown.find(t => t.status === 'go'), hl = S.tripHl;
+  const body = ended ? `<div class="rows">${past.length ? past.map(t => `<div class="ended-row"><div><span class="st ${stClass(t.status)}">${stLabel(t)}</span><b>${esc(fullName(t.name))}</b><p class="muted small">${t.start ? `${new Date(t.start).getUTCFullYear()}/${dshort(t.start)}–${dshort(t.end)}・` : ''}${t.note || ''}</p></div></div>`).join('') : '<p class="muted small">還沒有結束的行程。</p>'}</div>
+      <p class="muted small center">未成團、取消的行程也會收在這裡</p>`
+    : `<div class="chips-s trip-flt">${[['all','全部',act.length],['ask','詢問中',cnt('ask')],['wait','等成團',cnt('wait')],['ok','已成團',cnt('ok')]].map(([k, l, n]) => `<button class="fc ${flt===k?'on':''} ${n||k==='all'?'':'dim'}" data-tf="${k}">${l} ${n}</button>`).join('')}</div>
+      ${calHTML(shown)}
+      ${go ? `<div class="trav-card" style="background:${colOf('go')[0]};border-left-color:${colOf('go')[1]};color:${colOf('go')[2]}"><b>旅行中・${shortName(go.name)}</b>　今天第 ${go.day} 天：${['抵達巴黎、塞納河散步','瑪黑區甜點與咖啡','羅浮宮半日、下午自由','精品自由逛','凡爾賽宮','自由日','蒙馬特與聖心堂','奧賽美術館','整理行李、機場','抵達台灣'][go.day-1] || '自由活動'}（示意，以領隊公告為準）</div>` : ''}
+      <div class="rows">${shown.length ? shown.map(t => tripCard(t, hl === t.id)).join('') : `<p class="muted small">${act.length ? '這個狀態目前沒有行程。' : '還沒有行程。看到喜歡的團按「我想了解」，就會出現在這裡。'}</p>`}</div>
+      ${S.demo ? `<div class="demo-row">${S.stage === 'confirmed' ? `<button class="txt-btn" id="toDec">示範：切回挑團中</button><button class="txt-btn" id="pvGo">${S.previewGo ? '結束旅行中預覽' : '預覽旅行中的樣子'}</button>` : '<button class="txt-btn" id="toConf">示範：看成團後的樣子</button>'}</div>` : ''}`;
+  const el = $h(`<section class="pad mytrips">${topbar('我的行程', {home:true})}
+    <div class="tabs2"><a href="#/me/trips" class="${ended?'':'on'}" ${ended?'':'aria-current="page"'}>接下來</a><a href="#/me/trips/ended" class="${ended?'on':''}">已結束 ${past.length}</a></div>
+    ${body}</section>`);
+  bindBack(el, 'me');
+  S.tripHl = null;
+  const re = () => { save(); render(); };
+  el.querySelectorAll('[data-tf]').forEach(b => b.onclick = () => { S.tripFlt = b.dataset.tf; re(); });
+  const tg = el.querySelector('#calTg'); if (tg) tg.onclick = () => { S.tripCal.open = !S.tripCal.open; S.tripCal.ring = null; re(); };
+  el.querySelectorAll('[data-wk]').forEach(b => b.onclick = () => { S.tripCal.focus = weekStart(S.tripCal.focus || nowMs()) + (+b.dataset.wk) * 7*DAY; S.tripCal.ring = null; re(); });
+  el.querySelectorAll('[data-mo]').forEach(b => b.onclick = () => { const f = new Date(S.tripCal.focus || nowMs()); S.tripCal.focus = Date.UTC(f.getUTCFullYear(), f.getUTCMonth() + (+b.dataset.mo), 1); S.tripCal.ring = null; re(); });
+  el.querySelectorAll('[data-goto]').forEach(b => b.onclick = () => { S.tripCal.focus = +b.dataset.goto; S.tripCal.ring = +b.dataset.goto; re(); });
+  el.querySelectorAll('[data-todo]').forEach(b => b.onclick = () => { const d = +b.dataset.todo; S.tripCal = { ...S.tripCal, open:true, focus:d, ring:d }; S.tripHl = b.closest('[data-trip]').dataset.trip; re(); });
+  el.querySelectorAll('[data-day]').forEach(b => b.onclick = () => daySheet(+b.dataset.day, shown));
+  const tc = el.querySelector('#toConf'); if (tc) tc.onclick = () => { S.stage = 'confirmed'; S.tripCal = { open:false, focus:null, ring:null }; save(); toast('示範：巴黎 3/18 團已成團'); render(); };
+  const td = el.querySelector('#toDec'); if (td) td.onclick = () => { S.stage = 'deciding'; S.previewGo = false; save(); toast('已切回挑團中'); render(); };
+  const pg = el.querySelector('#pvGo'); if (pg) pg.onclick = () => { S.previewGo = !S.previewGo; S.tripCal = { open:false, focus:null, ring:null }; save(); render(); };
+  const cc = el.querySelector('.ccard'); if (cc && S.tripCal && S.tripCal.open) onScroll = y => cc.classList.toggle('mini', y > 260);
+  return el;
+}
+function daySheet(ms, list){
+  const its = dayItems(ms, list), d = new Date(ms), hn = holName(ms);
+  const rows = its.map(it => { if (it.kind === 'todo') { const c = colOf(it.x.cat);
+      return `<div class="ds-it"><span class="tm">${it.x.tm || '全天'}</span><div class="bx" style="background:${c[0]};box-shadow:inset 3px 0 0 ${c[1]}"><b>${esc(it.x.t)}</b><span>${esc(shortName(it.t.name))}${it.x.at ? '・' + esc(it.x.at) : ''}</span></div></div>`; }
+    const c = colOf(it.t.status === 'go' ? 'go' : it.t.status === 'wait' ? 'wait' : 'ok');
+    const sub = it.first ? `今天出發，${dshort(it.t.end)} 回國` : it.last ? '今天回國' : `旅行第 ${it.n} 天`;
+    return `<div class="ds-it"><span class="tm">全天</span><div class="bx" style="background:${it.t.status==='done'?'#F0EDE8':c[0]};box-shadow:inset 3px 0 0 ${it.t.status==='done'?'#8B847A':c[1]}"><b>${esc(fullName(it.t.name))}・${stLabel(it.t).split('・')[0]}</b><span>${sub}</span></div></div>`; }).join('');
+  const team = its.some(it => it.t.team);
+  openSheet(`<div class="sh-h"><b>${d.getUTCMonth()+1}/${d.getUTCDate()} 週${WD[d.getUTCDay()]}</b><span class="muted small">${hn ? `<b class="red-d">${hn}</b>・` : ''}${its.length} 件</span></div>
+    ${rows || '<p class="muted small" style="padding:12px 0">這天沒有安排。</p>'}
+    <div class="row3">${team ? '<a class="btn2 b2" href="#/team" data-close>團友牆</a>' : ''}${its.length ? '<button class="btn2 b2" id="dsIcs">加入行事曆</button>' : ''}<a class="btn2 b2" href="#/me/colors" data-close>修改顏色</a></div>`, (sh, close) => {
+    const ic = sh.querySelector('#dsIcs'); if (ic) ic.onclick = () => { dayICS(ms, its); close(); };
+    sh.querySelectorAll('a[data-close]').forEach(a => a.addEventListener('click', close)); });
+}
+function dayICS(ms, its){
+  const f = x => dkey(x).replace(/-/g, ''), stamp = new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z', ev = [];
+  its.forEach((it, k) => { if (it.kind === 'todo') { const x = it.x, tm = x.tm ? x.tm.replace(':', '') + '00' : null;
+      ev.push('BEGIN:VEVENT', `UID:${f(ms)}-${k}-${it.t.id}@fjuiec`, `DTSTAMP:${stamp}`, tm ? `DTSTART;TZID=Asia/Taipei:${f(ms)}T${tm}` : `DTSTART;VALUE=DATE:${f(ms)}`, tm ? `DURATION:PT1H` : `DTEND;VALUE=DATE:${f(ms + DAY)}`, `SUMMARY:${x.t}・${shortName(it.t.name)}`, x.at ? `LOCATION:${x.at}` : '', 'END:VEVENT'); }
+    else if (it.first) ev.push('BEGIN:VEVENT', `UID:${f(ms)}-trip-${it.t.id}@fjuiec`, `DTSTAMP:${stamp}`, `DTSTART;VALUE=DATE:${f(it.t.start)}`, `DTEND;VALUE=DATE:${f(it.t.end + DAY)}`, `SUMMARY:${fullName(it.t.name)}（永信旅遊・示意）`, 'END:VEVENT'); });
+  if (!ev.length) return toast('這天沒有可以加入的項目');
+  const lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//FJUIEC//YS Travel Prototype//ZH', ...ev.filter(Boolean), 'END:VCALENDAR'];
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([lines.join('\r\n')], { type:'text/calendar' })); a.download = 'ys-day.ics'; document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  toast('已下載行事曆檔，打開就能加入');
+}
+function colorsView(){
+  const cur = tripColors(), theme = Object.entries(THEMES).find(([, [, m]]) => COLOR_CATS.every(([k]) => m[k] === cur[k]));
+  const prev = (k, kind) => { const c = PAL[cur[k]]; return k === 'wait' ? `<span class="cpv" style="border:1.3px dashed ${c[1]};color:${c[2]}">巴黎甜點</span>` : `<span class="cpv" style="background:${c[0]};color:${c[2]};box-shadow:inset 3px 0 0 ${c[1]}">${kind === 'trip' ? '巴黎甜點' : COLOR_CATS.find(x => x[0] === k)[1].split('・')[0]}</span>`; };
+  const el = $h(`<section class="pad colors">${topbar('行程顏色', {home:true})}
+    <div class="box"><h3>一鍵換主題</h3><div class="themes">${Object.entries(THEMES).map(([k, [l, m]]) => `<button class="th op ${theme && theme[0]===k?'on':''}" data-th="${k}"><i>${['ok','go','leave'].map(c => `<u style="background:${PAL[m[c]][0]};box-shadow:inset 0 0 0 1.5px ${PAL[m[c]][1]}"></u>`).join('')}</i>${l}</button>`).join('')}</div></div>
+    <div class="box"><h3>逐項自訂</h3><p class="muted small">從淺色裡挑；意思靠文字，顏色只是好認</p>
+      ${COLOR_CATS.map(([k, l, kind]) => `<div class="crow"><span class="cl">${l}</span>${prev(k, kind)}<span class="sw">${(kind === 'trip' ? TRIP_PAL : TODO_PAL).map(p => `<button class="${cur[k]===p?'on':''}" style="background:${PAL[p][0]};box-shadow:inset 0 0 0 1.5px ${PAL[p][1]}55" data-c="${k}:${p}" aria-label="${l}用${PAL[p][3]}"></button>`).join('')}</span></div>`).join('')}
+      <p class="muted small">紅色數字固定代表六日與國定假日；已回國固定淡灰。</p>
+      <button class="btn2 b2" id="reset">恢復預設</button></div></section>`);
+  bindBack(el, 'me/trips');
+  const put = colors => { S.prefs = { ...(S.prefs || {}), colors }; save(); pushMember({ prefs:{ ...S.prefs, line:S.lineSync, filters:S.fltDefault || null } }); render(); };
+  el.querySelectorAll('[data-th]').forEach(b => b.onclick = () => { put({ ...THEMES[b.dataset.th][1] }); toast('已換成「' + THEMES[b.dataset.th][0] + '」'); });
+  el.querySelectorAll('[data-c]').forEach(b => b.onclick = () => { const [k, p] = b.dataset.c.split(':'); put({ ...tripColors(), [k]:p }); });
+  el.querySelector('#reset').onclick = () => { put(null); toast('已恢復預設'); };
+  return el;
+}
 
 /* ===== 啟動 ===== */
 /* 從 QR、連結直接打開深層頁面時，先在歷史紀錄墊上層頁面，手機返回鍵會一路回到首頁，不會直接跳出 App */
