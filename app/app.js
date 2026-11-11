@@ -1715,7 +1715,7 @@ function weekRow(ws, list, opts = {}){
     const cls = ['cn', isRedDay(d) ? 'r' : '', d === nowMs() ? 'today' : '', d === opts.ring ? 'ring' : '', out ? 'out' : ''].join(' ');
     return `<button class="${cls}" style="grid-column:${i+1}" data-day="${d}" aria-label="${dshort(d)}">${new Date(d).getUTCDate()}</button>`; }).join('');
   days.forEach((d, i) => { const hn = holName(d), its = dayItems(d, list), n = its.filter(x => x.kind === 'todo').length;
-    const more = n > 1 ? `＋${n - 1}` : ''; if (hn || more) h += `<span class="ch ${hn ? 'r' : ''}" style="grid-column:${i+1}">${hn || more}</span>`; });
+    const more = n > 1 ? `＋${n - 1}` : ''; if (hn || more) h += `<span class="chn ${hn ? 'r' : ''}" style="grid-column:${i+1}">${hn || more}</span>`; });
   spans.forEach(s => { const c = colOf(s.t.status === 'go' ? 'go' : s.t.status === 'wait' ? 'wait' : s.t.status === 'done' ? 'done' : 'ok');
     const st = s.t.status === 'wait' ? `border:1.3px dashed ${c[1]};color:${c[2]};background:#fff` : s.t.status === 'done' ? `background:#F0EDE8;color:#8B847A` : `background:${c[0]};color:${c[2]};${s.label ? `box-shadow:inset 3px 0 0 ${c[1]}` : ''}`;
     h += `<span class="cev" style="grid-row:${spanRow};grid-column:${s.c1}/${s.c2};${st}">${s.label ? shortName(s.t.name) : '&nbsp;'}</span>`; });
@@ -1725,20 +1725,26 @@ function weekRow(ws, list, opts = {}){
   return `<div class="cwk${fw ? ' focus' : ''}" style="grid-template-rows:${rows.join(' ')}">${h}</div>`;
 }
 function calHTML(list){
-  const cs = S.tripCal = Object.assign({ open:false, focus:null, ring:null }, S.tripCal || {});
-  const focus = cs.focus || nowMs(), hd = `<div class="cdh">${[...WD].map((x, i) => `<span class="${i===0||i===6?'r':''}">${x}</span>`).join('')}</div>`;
+  const cs = S.tripCal = Object.assign({ open:true, focus:null, ring:null }, S.tripCal || {});
+  const focus = cs.focus || nowMs(), seg = `<span class="cseg" role="tablist"><button data-cm="week" aria-pressed="${!cs.open}">週</button><button data-cm="month" aria-pressed="${cs.open}">月</button></span>`;
+  const hd = `<div class="cdh">${[...WD].map((x, i) => `<span class="${i===0||i===6?'r':''}">${x}</span>`).join('')}</div>`;
   if (!cs.open) {
     const ws = weekStart(focus), has = list.some(t => t.todos.some(x => x.d >= ws && x.d < ws + 7*DAY) || (t.start && t.start <= ws + 6*DAY && t.end >= ws));
     const nx = nextTodo(list.filter(t => !ENDED.has(t.status))) || null;
     const nxSpan = list.filter(t => t.start && t.start > ws + 6*DAY && !ENDED.has(t.status)).sort((a,b) => a.start - b.start)[0];
     const target = nx && (!nxSpan || nx.d <= nxSpan.start) ? { d:nx.d, t:nx.t } : nxSpan ? { d:nxSpan.start, t:shortName(nxSpan.name) + ' 出發' } : null;
-    return `<div class="ccard"><div class="ctop"><span>${ws <= nowMs() && nowMs() < ws + 7*DAY ? '本週・' : ''}${dshort(ws)}–${dshort(ws + 6*DAY)}</span><span class="cnav"><button data-wk="-1" aria-label="上一週">‹</button><button data-wk="1" aria-label="下一週">›</button><button class="txt-btn" id="calTg">展開月曆 ▾</button></span></div>
+    const isNow = ws <= nowMs() && nowMs() < ws + 7*DAY;
+    return `<div class="ccard"><div class="ctop"><span class="cnav"><button data-wk="-1" aria-label="上一週">‹</button><b>${isNow ? '本週・' : ''}${dshort(ws)}–${dshort(ws + 6*DAY)}</b><button data-wk="1" aria-label="下一週">›</button>${isNow ? '' : '<button class="txt-btn" data-today>今天</button>'}</span>${seg}</div>
       ${hd}${weekRow(ws, list, { ring:cs.ring })}
       ${!has ? `<div class="cempty"><span>這週沒有安排</span>${target ? `<button class="txt-btn" data-goto="${target.d}">下一件 <b class="red-d">${dshort(target.d)}</b> ${esc(target.t)} ›</button>` : ''}</div>` : ''}</div>`;
   }
   const f = new Date(focus), y = f.getUTCFullYear(), m = f.getUTCMonth(), m0 = Date.UTC(y, m, 1), m1 = Date.UTC(y, m + 1, 0);
   let rows = ''; for (let ws = weekStart(m0); ws <= m1; ws += 7*DAY) rows += weekRow(ws, list, { ring:cs.ring, monthStart:m0, monthEnd:m1, fw:cs.ring || (nowMs() >= m0 && nowMs() <= m1 ? nowMs() : m0) });
-  return `<div class="ccard"><div class="ctop"><span class="cnav"><button data-mo="-1" aria-label="上個月">‹</button></span><b>${y} 年 ${m + 1} 月</b><span class="cnav"><button data-mo="1" aria-label="下個月">›</button><button class="txt-btn" id="calTg">收合 ▴</button></span></div>${hd}${rows}</div>`;
+  const nowIn = nowMs() >= m0 && nowMs() <= m1;
+  const mHas = list.some(t => t.todos.some(x => x.d >= m0 && x.d <= m1) || (t.start && t.start <= m1 && t.end >= m0));
+  const nxM = list.filter(t => !ENDED.has(t.status)).flatMap(t => [...t.todos.map(x => ({ d:x.d, t:x.t })), ...(t.start ? [{ d:t.start, t:shortName(t.name) + ' 出發' }] : [])]).filter(x => x.d > m1).sort((a, b) => a.d - b.d)[0];
+  const mEmpty = mHas ? '' : `<div class="cempty"><span>這個月沒有安排</span>${nxM ? `<button class="txt-btn" data-goto="${nxM.d}">下一件 <b class="red-d">${dshort(nxM.d)}</b> ${esc(nxM.t)} ›</button>` : ''}</div>`;
+  return `<div class="ccard"><div class="ctop"><span class="cnav"><button data-mo="-1" aria-label="上個月">‹</button><b>${y} 年 ${m + 1} 月</b><button data-mo="1" aria-label="下個月">›</button>${nowIn ? '' : '<button class="txt-btn" data-today>今天</button>'}</span>${seg}</div>${hd}${rows}${mEmpty}</div>`;
 }
 function tripCard(t, hl){
   const nx = t.todos.filter(x => x.d >= nowMs()).slice(0, 2), st = stLabel(t);
@@ -1751,6 +1757,7 @@ function tripCard(t, hl){
     ${t.note ? `<p class="small muted">${esc(t.note)}</p>` : ''}${link}</div>`;
 }
 function tripsView(){
+  if (!S._keepCal) S.tripCal = { open:true, focus:null, ring:null }; S._keepCal = false;
   const ended = route()[2] === 'ended', all = myTrips(), act = all.filter(t => !ENDED.has(t.status)), past = all.filter(t => ENDED.has(t.status));
   const flt = S.tripFlt || 'all', cnt = k => act.filter(t => k === 'ok' ? (t.status === 'ok' || t.status === 'go') : k === 'ask' ? (t.status === 'ask' || t.status === 'plan') : t.status === k).length;
   const shown = flt === 'all' ? act : act.filter(t => flt === 'ok' ? (t.status === 'ok' || t.status === 'go') : flt === 'ask' ? (t.status === 'ask' || t.status === 'plan') : t.status === flt);
@@ -1767,9 +1774,10 @@ function tripsView(){
     ${body}</section>`);
   bindBack(el, 'me');
   S.tripHl = null;
-  const re = () => { save(); render(); };
+  const re = () => { S._keepCal = true; save(); render(); };
   el.querySelectorAll('[data-tf]').forEach(b => b.onclick = () => { S.tripFlt = b.dataset.tf; re(); });
-  const tg = el.querySelector('#calTg'); if (tg) tg.onclick = () => { S.tripCal.open = !S.tripCal.open; S.tripCal.ring = null; re(); };
+  el.querySelectorAll('[data-cm]').forEach(b => b.onclick = () => { S.tripCal.open = b.dataset.cm === 'month'; re(); });
+  el.querySelectorAll('[data-today]').forEach(b => b.onclick = () => { S.tripCal.focus = null; S.tripCal.ring = null; re(); });
   el.querySelectorAll('[data-wk]').forEach(b => b.onclick = () => { S.tripCal.focus = weekStart(S.tripCal.focus || nowMs()) + (+b.dataset.wk) * 7*DAY; S.tripCal.ring = null; re(); });
   el.querySelectorAll('[data-mo]').forEach(b => b.onclick = () => { const f = new Date(S.tripCal.focus || nowMs()); S.tripCal.focus = Date.UTC(f.getUTCFullYear(), f.getUTCMonth() + (+b.dataset.mo), 1); S.tripCal.ring = null; re(); });
   el.querySelectorAll('[data-goto]').forEach(b => b.onclick = () => { S.tripCal.focus = +b.dataset.goto; S.tripCal.ring = +b.dataset.goto; re(); });
@@ -1778,7 +1786,6 @@ function tripsView(){
   const tc = el.querySelector('#toConf'); if (tc) tc.onclick = () => { S.stage = 'confirmed'; S.tripCal = { open:false, focus:null, ring:null }; save(); toast('示範：巴黎 3/18 團已成團'); render(); };
   const td = el.querySelector('#toDec'); if (td) td.onclick = () => { S.stage = 'deciding'; S.previewGo = false; save(); toast('已切回挑團中'); render(); };
   const pg = el.querySelector('#pvGo'); if (pg) pg.onclick = () => { S.previewGo = !S.previewGo; S.tripCal = { open:false, focus:null, ring:null }; save(); render(); };
-  const cc = el.querySelector('.ccard'); if (cc && S.tripCal && S.tripCal.open) onScroll = y => cc.classList.toggle('mini', y > 260);
   return el;
 }
 function daySheet(ms, list){
