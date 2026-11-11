@@ -2,7 +2,7 @@
 
 1. 建立 Supabase 專案（建議 Tokyo 或 Singapore 區）。
 2. Authentication → Sign In / Providers：開啟 **Anonymous sign-ins**（旅客端用）與 Email（顧問、主管用）。
-3. SQL Editor 依序執行 `schema.sql`、`schema_v2.sql`（旅伴、通知、點數明細）、`schema_v3.sql`（會員欄位）、`schema_v4.sql`（投票、揪團、自我介紹）、`seed.sql`（30 位示意客人，`is_demo = true`）。
+3. SQL Editor 依序執行 `schema.sql`、`schema_v2.sql`（旅伴、通知、點數明細）、`schema_v3.sql`（會員欄位）、`schema_v4.sql`（投票、揪團、自我介紹）、`schema_v5.sql`（請假提醒 leave_reminders；my_buddies 不回傳剩餘特休，get_poll／get_group 只回傳請假條件彙總）、`seed.sql`（30 位示意客人，`is_demo = true`）。
 4. Authentication → Users 建立顧問與主管帳號，再執行：
    ```sql
    insert into public.staff (user_id, display_name, role) values

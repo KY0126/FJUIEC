@@ -37,10 +37,10 @@ const POPULAR = ['奧捷慢遊 10 天','北歐極光 10 天'];
 /* ===== 示範帳號：林雅婷（只在這支手機，不寫入資料庫） ===== */
 const DEMO = {
   name:'林雅婷', ans:{q1:1,q2:2,q3:2,q4:2,q5:0,q6:4,q7:1,q8:2,q9:3,q10:3,q11:2,q12:[0,1,4]},
-  prof:{card_a:{companion:2,months:[0],days:1,budget:3}, card_b:{hot:0,walk:1,maxDrive:0,shop:0}},
+  prof:{card_a:{companion:2,months:[0],days:1,budget:3,leave:{who:'work',left:14,max:7,busy:[10,11],rest:false}}, card_b:{hot:0,walk:1,maxDrive:0,shop:0}},
   favs:['巴黎精品與甜點 10 天｜巴黎連泊、精品自由逛、購物後司機送回飯店'],
   buddy:{nickname:'怡君', role_key:'rabbit', answers:{q1:2,q2:1,q3:0,q4:2,q5:2,q6:1,q7:2,q8:2,q9:2,q10:2,q11:1,q12:[1]},
-         card_a:{months:[0,1],budget:2}, card_b:{shop:0}, demo:true}
+         card_a:{months:[0,1],budget:2,leave:{who:'work',max:7,busy:[6,7],rest:false}}, card_b:{shop:0}, demo:true}
 };
 const daysAgo = n => new Date(Date.now() - n*864e5).toISOString();
 function demoNotes(){ return [
@@ -59,12 +59,14 @@ const LS = 'ys_app_v2';
 const S = Object.assign({consent:null, demo:false, ans:{}, pace:null, view:null, prof:{}, favs:[], cmp:[], quizDone:false,
   notes:[], ledger:[], buddies:[], nickname:'', lineSync:true, me:null, inv:null, flt:null, region:null,
   inq:[], avatar:null, region_tw:null, prefs:{}, fltDefault:null, photo:null, photoOn:false,
-  intro:null, polls:[], groups:[], pendPoll:null, pendJoin:null, metoo:[], demoPoll:null, demoGroup:null},
+  intro:null, reminders:[], polls:[], groups:[], pendPoll:null, pendJoin:null, metoo:[], demoPoll:null, demoGroup:null},
   (()=>{try{return JSON.parse(localStorage.getItem(LS)||'{}')}catch(e){return {}}})());
 S.me = null;
-const DEMO_VER = 4;   // 示範帳號資料版本：App 加了新功能時調高，舊手機上的示範帳號會自動補齊
+const DEMO_VER = 5;   // 示範帳號資料版本：App 加了新功能時調高，舊手機上的示範帳號會自動補齊
 if (S.demo && S.demoVer !== DEMO_VER) {
   Object.assign(S, { photo:'img/lin.jpg', photoOn:true, avatar:S.avatar || 'cat', region_tw:S.region_tw || '北部', nickname:S.nickname || '林雅婷', demoVer:DEMO_VER });
+  if (S.prof) { S.prof.card_a = S.prof.card_a || {}; if (!S.prof.card_a.leave) S.prof.card_a.leave = JSON.parse(JSON.stringify(DEMO.prof.card_a.leave)); }
+  (S.buddies || []).forEach(b => { if (b.demo) b.card_a = JSON.parse(JSON.stringify(DEMO.buddy.card_a)); });
   if (!S.inq || !S.inq.length) S.inq = [{ trip:'巴黎精品與甜點 10 天｜巴黎連泊、精品自由逛、購物後司機送回飯店', status:'replied', at:new Date(Date.now() - .3*864e5).toISOString() }];
 }
 state.ans = S.ans || {}; if (S.pace) { state.pace = S.pace; state.view = S.view || S.pace; }
@@ -145,7 +147,7 @@ function render(){
   if (GATED.has(r[0]) && !S.quizDone) { S.after = r.join('/'); save(); return nav('welcome', true); }
   const views = {home:()=>S.quizDone?homeView():homeNewView(), welcome:welcomeView, quiz:quizView, result:resultView,
     explore:()=>r[1]==='map'?mapView():exploreView(), trip:tripView, compare:compareView, buddy:buddyView, pass:()=>r[1]==='points'?pointsView():passView(),
-    me:()=>({card:()=>cardQView(r[2], +r[3]||0), edit:editView, settings:settingsView, favs:favsView, inquiries:inquiriesView, legal:()=>legalView(r[2]), intro:introView}[r[1]] || meView)(), team:teamView, inbox:inboxView, advisor:advisorView};
+    me:()=>({card:()=>cardQView(r[2], +r[3]||0), edit:editView, settings:settingsView, favs:favsView, inquiries:inquiriesView, legal:()=>legalView(r[2]), intro:introView, leave:leaveView}[r[1]] || meView)(), team:teamView, inbox:inboxView, advisor:advisorView};
   onScroll = null; clearInterval(flipTimer);
   const v = (views[r[0]] || views.home)(), goingBack = dir === 'back';
   v.classList.add('screen', goingBack ? 'in-back' : 'in-fwd'); dir = 'fwd';
@@ -341,6 +343,7 @@ function scoreFor(role, ans, prof){
     if (A.days != null) { const ok = [t.days<8, t.days>=8&&t.days<=10, t.days>=10&&t.days<=12, t.days>=12][A.days]; if (ok) x.s += .5; }
     if (B.walk === 0 && t.walk >= 3) x.s -= 1; if (B.maxDrive === 1 && t.maxDrive > 4) x.s -= 1;
     if ((C.interests||[]).includes(2) && /at-cz/.test(t.region)) { x.s += .5; x.why.push('有音樂會'); }
+    if (prof === S.prof) { const lw = lvWhy(t, A.leave); if (lw) { if (lw.warn) { x.s -= 1.5; x.warn = lw.warn; } else if (lw.chip) x.why.push(lw.chip); } }
   });
   return r.sort((a,b) => b.s - a.s);
 }
@@ -365,7 +368,7 @@ function tripRow(x, opts={}){ const t = x.t, i = TRIPS.indexOf(t), fav = S.favs.
   return `<div class="row-card op" data-i="${i}">
     <a class="rc-main" href="#/trip/${i}"><b>${short(t)}</b>
       <span>${AREA_NAME[g.area]}・${t.stay?'連泊':(t.name.split('｜')[1]||'').split('、')[0]}・${t.from.toFixed(1)} 萬起${t.est?'（示意）':''}</span>
-      <span class="muted">步行${WALK[t.walk]}・車程 ${t.maxDrive}h・${t.shop?'含購物站':'無購物站'}${opts.fit!=null?`・合拍 ${opts.fit}%`:''}</span></a>
+      <span class="muted">步行${WALK[t.walk]}・車程 ${t.maxDrive}h・${t.shop?'含購物站':'無購物站'}${opts.fit!=null?`・合拍 ${opts.fit}%`:''}</span>${x.warn?`<span class="lv-w">${x.warn}</span>`:''}</a>
     <div class="rc-acts"><button class="cmp-tg" data-cmp="${i}" aria-pressed="${inCmp}">${inCmp?'已選':'比較'}</button>
       <button class="hb heart" data-fav="${i}" aria-pressed="${fav}" aria-label="收藏">${ic('heart')}</button></div></div>`; }
 function bindRows(el){
@@ -595,6 +598,7 @@ function homeView(){
       <a class="q op" href="#/buddy">${ic('buddy')}<span>邀請旅伴</span></a>
       <a class="q op" href="#/explore/map">${ic('map')}<span>探索地圖</span></a>
       <a class="q op" href="#/advisor">${ic('chat')}<span>找顧問</span></a></div>
+    ${(() => { const L = myLeave(); return L && L.at && +L.at.slice(0,4) < new Date().getFullYear() ? `<a class="buddy-banner op" href="#/me/leave">新的一年，特休重新計算了：<b>更新請假條件</b> ${ic('chev','end')}</a>` : ''; })()}
     ${b?`<a class="buddy-banner op" href="#/buddy"><b>${esc(b.nickname||'你的旅伴')}</b> 完成測驗了，看你們的共同推薦 ${ic('chev','end')}</a>`:''}
   </section>`);
   return el;
@@ -672,6 +676,7 @@ function tripView(){
         <li><b>住宿</b>${t.stay?'連泊為主，不用每天換飯店':'每 1–2 晚換一次城市'}</li></ul>
         <p class="muted small">每日行程為課程示意，正式版改用永信行程表。</p></div>
       <div class="box"><h3>出發與天氣</h3><p>建議 <b>${t.months}</b>　均溫 <b>${t.temp}°C</b></p><p class="muted small">${tip}</p></div>
+      ${leaveBox(t)}
     </div>
     <div class="buy-bar"><div><span>每人</span><b>${t.from.toFixed(1)} 萬起</b>${t.est?'<small>示意價格</small>':''}</div>
       <button class="btn2 b2" id="cmp">${inCmp?'已加入比較':'加入比較'}</button><button class="btn1 b1" id="ask">我想了解</button></div>
@@ -681,6 +686,7 @@ function tripView(){
   const bar = el.querySelector('.trip-top'); onScroll = y => bar.classList.toggle('solid', y > 100);
   el.querySelector('#cmp').onclick = () => { if (!S.quizDone) return toast('做完一分鐘測驗就能比較行程'); toggleCmp(i); if (S.cmp.includes(i) && S.cmp.length >= 2) nav('compare'); else render(); };
   el.querySelector('#ask').onclick = () => nav('advisor/' + i);
+  bindLeave(el, t);
   return el;
 }
 
@@ -747,7 +753,7 @@ function buddyView(){
       <div class="box"><p><b>你們都在意</b>　${B.common.join('、') || '還看不出來，請旅伴補旅人檔案'}</p>
         ${B.diff.length?`<p><b>不一樣的地方</b>　${B.diff.join('；')}</p>`:''}</div>
       <div class="sec-h"><h2>兩人都適合的 3 團</h2><span class="muted small">依兩人檔案交集</span></div>
-      <div class="rows">${B.joint.map(j => `<div class="row-card op"><a class="rc-main" href="#/trip/${TRIPS.indexOf(j.t)}"><b>${short(j.t)}</b><span>${j.why}</span><span class="muted">${j.t.from.toFixed(1)} 萬起・${j.t.months}</span></a><button class="cmp-tg grp-btn" data-group-from="${TRIPS.indexOf(j.t)}">揪這團</button></div>`).join('')}</div>
+      <div class="rows">${B.joint.map(j => `<div class="row-card op"><a class="rc-main" href="#/trip/${TRIPS.indexOf(j.t)}"><b>${short(j.t)}</b><span>${j.why}</span><span class="muted">${j.t.from.toFixed(1)} 萬起・${j.t.months}</span>${commonLine(j.t, buddyLeave(b))}</a><button class="cmp-tg grp-btn" data-group-from="${TRIPS.indexOf(j.t)}">揪這團</button></div>`).join('')}</div>
       ${S.buddies.length>1?`<p class="muted small">另外還有 ${S.buddies.length-1} 位旅伴：${S.buddies.slice(1).map(x=>esc(x.nickname||PACES[x.role_key].short)).join('、')}</p>`:''}`; }
   const el = $h(`<section class="pad">
     ${head('旅伴', {big:true, back:'auto', right:'<button class="txt-btn" id="inv">＋ 邀請</button>'})}
@@ -895,9 +901,11 @@ function pollResult(p){
 }
 function pollCard(p){
   const R = pollResult(p), mineV = (p.votes.find(v => v.me) || {}).votes || [];
+  const others = p.leave ? aggLeave(p.leave) : S.demo && S.buddies[0] ? buddyLeave(S.buddies[0]) : null;
   return `<div class="poll box" data-code="${p.code}"><div class="sec-h"><h3>${p.mine?'你發起的投票':esc(p.owner)+' 發起的投票'}</h3><span class="muted small">${p.votes.length} 人已選</span></div>
     ${p.trips.map((t, i) => { const cnt = [0,1,2].map(k => p.votes.filter(v => v.votes[i] === k).length);
-      return `<div class="pq"><div class="pq-h"><b>${short({name:t})}</b><span class="muted small">想去 ${cnt[2]}・可以 ${cnt[1]}・不行 ${cnt[0]}</span></div>
+      const tt = TRIPS.find(x => x.name === t);
+      return `<div class="pq"><div class="pq-h"><b>${short({name:t})}</b><span class="muted small">想去 ${cnt[2]}・可以 ${cnt[1]}・不行 ${cnt[0]}</span></div>${tt ? commonLine(tt, others) : ''}
         <div class="vote3">${[2,1,0].map(k => `<button data-v="${i}:${k}" aria-pressed="${mineV[i]===k}">${VOTE_L[k]}</button>`).join('')}</div></div>`; }).join('')}
     ${p.votes.length?`<p class="poll-res">目前推薦：<b>${short({name:p.trips[R.best]})}</b>${R.month?`・${R.month}出發`:''}</p>`:''}
     <div class="row2">${p.mine?`<button class="btn2 b2" data-share-poll="${p.code}">再傳給旅伴</button>`:''}<button class="btn1 b1" data-group-from="${TRIPS.findIndex(x => x.name === p.trips[R.best])}">揪這團</button></div></div>`;
@@ -907,6 +915,7 @@ function groupCard(g){
   const st = g.status === 'sent' ? '已送給顧問' : g.status === 'full' ? '已湊滿' : `還差 ${Math.max(0, g.target - n)} 人`;
   return `<div class="group box"><div class="sec-h"><h3>揪團：${short({name:g.trip})}</h3><span class="st st-${g.status==='open'?'new':'won'}">${st}</span></div>
     <p class="muted small">${g.depart||'月份未定'}出發・截止 ${String(g.deadline).slice(5).replace('-','/')}・${g.mine?'你發起':esc(g.owner)+' 發起'}</p>
+    ${(() => { const tt = TRIPS.find(x => x.name === g.trip), oth = g.leave ? aggLeave(g.leave) : S.demo && S.buddies[0] ? buddyLeave(S.buddies[0]) : null; return tt ? commonLine(tt, oth, parseInt(g.depart) || null) : ''; })()}
     <div class="prog"><i style="width:${pct}%"></i></div><p class="small"><b>${n}／${g.target} 人</b>　${g.members.map(m => esc(m.nick) + (m.role?`（${PACES[m.role].short}）`:'')).join('、')}</p>
     <p class="muted small">${GROUP_PERKS}</p>
     <div class="row2">${g.status==='open'?`<button class="btn2 b2" data-share-group="${g.code}">傳揪團小卡</button>`:''}${g.mine && n >= 2 && g.status !== 'sent' ? `<button class="btn1 b1" data-send-group="${g.code}">送給顧問確認名額</button>` : ''}</div>
@@ -1031,12 +1040,12 @@ function teamView(){
 }
 
 /* ===== 10 找顧問 ===== */
-function summaryLines(tripName){
+function summaryLines(t){
   const P = PACES[state.view], a = S.prof.card_a||{}, b = S.prof.card_b||{}, c = S.prof.card_c||{}, d = S.prof.card_d||{};
   const lab = (k, q, v) => { if (v === undefined) return null; const qq = CARDS.find(x=>x.k===k).qs.find(x=>x.id===q); return Array.isArray(v) ? v.map(i=>qq.o[i]).join('、') : qq.o[v]; };
   return [['角色', `${P.name}（${P.short}）`], ['同行', lab('card_a','companion',a.companion)], ['月份', lab('card_a','months',a.months)], ['預算', lab('card_a','budget',a.budget)],
     ['在意', [b.hot===0?'怕熱':null, b.shop===0?'不要購物站':null, b.walk===0?'走路輕鬆':null, b.maxDrive===0?'車程 3 小時內':null].filter(Boolean).join('、')||null],
-    ['興趣', lab('card_c','interests',c.interests)], ['聯絡', [lab('card_d','contact',d.contact), lab('card_d','time',d.time)].filter(Boolean).join('，')||null]].filter(x => x[1]);
+    ['興趣', lab('card_c','interests',c.interests)], ['聯絡', [lab('card_d','contact',d.contact), lab('card_d','time',d.time)].filter(Boolean).join('，')||null], ['請假', leaveSummary(t)]].filter(x => x[1]);
 }
 function advisorView(){
   const ti = route()[1], t = ti != null && ti !== '' ? TRIPS[+ti] : null;
@@ -1047,7 +1056,7 @@ function advisorView(){
     const qr = (()=>{ try { const q = qrcode(0, 'M'); q.addData(code); q.make(); return q.createSvgTag({ cellSize:5, margin:2, scalable:true }); } catch(e) { return ''; } })();
     body.innerHTML = `<div class="code-card"><div class="qr">${qr}</div><div><span class="muted small">交接代碼${S.demo?'（示範）':''}</span><p class="code">${code}</p>
         <p class="small">報給顧問或讓顧問掃描，不用重講一次需求</p></div></div>
-      <div class="sumcard">${t?`<b>想了解：${short(t)}</b>`:'<b>我的摘要</b>'}${summaryLines().map(([k,v])=>`<div class="kv"><span>${k}</span><span>${v}</span></div>`).join('')}
+      <div class="sumcard">${t?`<b>想了解：${short(t)}</b>`:'<b>我的摘要</b>'}${summaryLines(t).map(([k,v])=>`<div class="kv"><span>${k}</span><span>${v}</span></div>`).join('')}
         ${completion()<100?`<a class="small" href="#/me">旅人檔案 ${completion()}%，補完會更準 →</a>`:''}</div>
       <button class="btn1 b1" id="line">開啟 LINE 傳給顧問</button>
       <p class="muted small center">顧問上班時間內回覆；晚上送出，隔天早上 10 點前回覆</p>`;
@@ -1176,6 +1185,7 @@ function meView(){
       <p class="muted small">每一題都寫了用途；不放進一分鐘測驗，想到再補就好。</p></details>
     <div class="menu">
       <a class="op" href="#/me/intro">${ic('chat')}<span>我的自我介紹</span><em>${S.intro?({team:'只給領隊',all:'全團公開',none:'不公開'}[S.intro.vis]):'用作答自動產生'}</em>${ic('chev','end')}</a>
+      <a class="op" href="#/me/leave">${ic('pass')}<span>請假條件</span><em>${myLeave()?WHO.find(x=>x[0]===myLeave().who)[1]:'算出要請幾天'}</em>${ic('chev','end')}</a>
       <a class="op" href="#/team">${ic('star')}<span>我的團</span>${S.demo?'<em>巴黎 3/18 團</em>':''}${ic('chev','end')}</a>
       <a class="op" href="#/buddy">${ic('buddy')}<span>旅伴</span>${S.buddies.length?`<em>${S.buddies.length} 位</em>`:''}${ic('chev','end')}</a>
       <a class="op" href="#/inbox">${ic('bell')}<span>通知</span>${unread()?`<em>${unread()} 則未讀</em>`:''}${ic('chev','end')}</a>
@@ -1261,6 +1271,7 @@ function settingsView(){
     </div>
     <h2 class="sh">推薦偏好</h2><div class="sgroup">
       ${row('#/me','管理旅人檔案', `完成 ${completion()}%`)}
+      ${row('#/me/leave','請假條件', myLeave()?leaveSummary():'填了就能在行程頁看到要請幾天')}
       <div class="srow col"><span>探索頁預設篩選<small>打開探索時自動套用</small></span><div class="chips-s">${[['noshop','無購物站'],['cool','避開炎熱'],['walk','走路不累']].map(([k,l])=>`<button class="fc ${dflt.includes(k)?'on':''}" data-df="${k}">${l}</button>`).join('')}</div></div>
       <button class="srow" id="redo"><span>重新做測驗<small>角色與推薦會重算；旅人檔案保留</small></span>${ic('chev','end')}</button>
     </div>
@@ -1315,9 +1326,9 @@ function settingsView(){
 /* ----- 隱私與條款（課程原型草稿，正式版需永信法務審閱） ----- */
 const LEGAL = {
   data: ['我們記錄什麼', [
-    ['會記錄', '測驗答案與旅人角色；旅人檔案（出發條件、耐受度、興趣、聯絡偏好、生日月份）；暱稱、頭像、居住地區；收藏、比較、詢問、點數與旅伴配對；在 App 裡的操作事件（例如看了哪一團、按了哪個按鈕）。'],
+    ['會記錄', '測驗答案與旅人角色；旅人檔案（出發條件、耐受度、興趣、聯絡偏好、生日月份）；請假條件（身分、剩餘特休、一次最多請幾天、不方便的月份；不記錄到職日與公司名稱）；暱稱、頭像、居住地區；收藏、比較、詢問、點數與旅伴配對；在 App 裡的操作事件（例如看了哪一團、按了哪個按鈕）。'],
     ['不會記錄', '真實姓名、電話、身分證字號、完整生日、照片、所在位置、通訊錄。'],
-    ['用途', '推薦行程、讓顧問用交接代碼接手、發送你開啟的通知、計算點數與等級、以不具名的方式統計測驗與推薦成效。'],
+    ['用途', '推薦行程、算出各團要請幾天假（旅伴只看到共同出發日期，看不到你的天數）、讓顧問用交接代碼接手、發送你開啟的通知、計算點數與等級、以不具名的方式統計測驗與推薦成效。'],
     ['存在哪裡', 'Supabase 雲端資料庫（東京或新加坡機房）；只有你本人與負責顧問看得到個別資料，主管只看彙總數字。'],
     ['保存多久', '最後一次使用起 12 個月；課程專案結束後一併刪除。你也可以隨時在「設定 → 隱私與資料」刪除。'],
     ['試玩與示範帳號', '只存在這支手機的瀏覽器，不會上傳。']]],
@@ -1387,6 +1398,206 @@ function cardQView(k, i){
   el.querySelector('#next').onclick = go;
   return el;
 }
+
+/* ===== 請假試算：自己填的 4 欄＋身分；連假依行政院 116 年（2027）政府行政機關辦公日曆表 ===== */
+const HOL = { '2026-12-25':'行憲紀念日', '2027-01-01':'元旦', '2027-02-04':'春節', '2027-02-05':'春節', '2027-02-08':'春節', '2027-02-09':'春節', '2027-02-10':'春節',
+  '2027-03-01':'228', '2027-04-05':'清明', '2027-04-06':'清明', '2027-04-30':'勞動節', '2027-06-09':'端午節', '2027-09-15':'中秋節', '2027-09-28':'教師節',
+  '2027-10-11':'國慶', '2027-10-25':'光復節', '2027-12-24':'行憲紀念日', '2027-12-31':'跨年' };
+const LONG = [['行憲紀念日連假','2026-12-25','2026-12-27'],['元旦連假','2027-01-01','2027-01-03'],['春節','2027-02-04','2027-02-10'],['228 連假','2027-02-27','2027-03-01'],
+  ['清明連假','2027-04-03','2027-04-06'],['勞動節連假','2027-04-30','2027-05-02','labor'],['國慶連假','2027-10-09','2027-10-11'],['光復節連假','2027-10-23','2027-10-25'],
+  ['行憲紀念日連假','2027-12-24','2027-12-26'],['跨年連假','2027-12-31','2028-01-02']];
+const BREAKS = [['2027-01-16','2027-02-21'],['2027-06-26','2027-09-12']];   // 大專院校寒暑假（示意，依各校行事曆）
+const CAL_END = '2028-01-02', LEAD_DAYS = 14;
+const WHO = [['work','上班族','依勞基法'],['gov','公務員','依公務人員請假規則'],['student','學生','看寒暑假'],['free','其他','自由業、退休、待業']];
+const DAY = 864e5, WD = '日一二三四五六';
+const dms = s => Date.UTC(+s.slice(0,4), +s.slice(5,7) - 1, +s.slice(8,10));
+const dkey = ms => new Date(ms).toISOString().slice(0,10);
+const dlab = ms => { const d = new Date(ms); return `${d.getUTCMonth()+1}/${d.getUTCDate()}（${WD[d.getUTCDay()]}）`; };
+const dshort = ms => { const d = new Date(ms); return `${d.getUTCMonth()+1}/${d.getUTCDate()}`; };
+const n1 = n => (Math.round(n * 2) / 2).toString();
+const todayMs = () => { const d = new Date(); return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()); };
+const myLeave = () => (S.prof.card_a || {}).leave || null;
+function offDay(ms, who){
+  const wd = new Date(ms).getUTCDay(), k = dkey(ms);
+  if (wd === 0 || wd === 6) return true;
+  if (HOL[k] && !(k === '2027-04-30' && who === 'gov')) return true;
+  if (who === 'student' && BREAKS.some(([a,b]) => ms >= dms(a) && ms <= dms(b))) return true;
+  return false;
+}
+/* 第 1 天晚上搭機：上班日只算下午半天；中間每個上班日 1 天；最後一天早上抵台：上班日算 1 天；想多休一天就再加回國隔天 */
+function leaveOf(start, days, L){
+  if (L.who === 'free') return 0;
+  let n = offDay(start, L.who) ? 0 : .5;
+  for (let i = 1; i < days; i++) if (!offDay(start + i*DAY, L.who)) n += 1;
+  if (L.rest && !offDay(start + days*DAY, L.who)) n += 1;
+  return n;
+}
+function longOf(start, days, who){ const end = start + (days-1)*DAY;
+  return LONG.find(([, a, b, lab]) => !(lab && who === 'gov') && dms(a) <= end && dms(b) >= start) || null; }
+const PREMIUM = { '春節':.15 };   // 示意：春節團費約高 15%，其他連假約高 5%；待業師給實際價差
+const premOf = lg => lg ? (PREMIUM[lg[0]] ?? .05) : 0;
+function busyHit(start, days, L){ const b = new Set(L.busy || []); if (!b.size) return false;
+  for (let i = 0; i < days; i++) if (b.has(new Date(start + i*DAY).getUTCMonth())) return true; return false; }
+const capOf = L => Math.min(L.max ?? 99, (L.who === 'work' || L.who === 'gov') && L.left != null ? L.left : 99);
+/* 所有可出發日（今天起 14 天後，到行事曆已公布的範圍），依請假天數排序 */
+const _lvCache = new Map();
+function windowsFor(t, Ls, monthOnly){
+  const key = t.name + '|' + JSON.stringify(Ls) + '|' + (monthOnly || '') + '|' + todayMs();
+  if (_lvCache.has(key)) return _lvCache.get(key);
+  const ms = monthOnly ? new Set([monthOnly]) : monthsOf(t), out = [], last = dms(CAL_END) - (t.days - 1) * DAY;
+  for (let s = todayMs() + LEAD_DAYS*DAY; s <= last; s += DAY) {
+    if (!ms.has(new Date(s).getUTCMonth() + 1)) continue;
+    const per = Ls.map(L => leaveOf(s, t.days, L)), lg = longOf(s, t.days, Ls[0].who);
+    const ok = Ls.every((L, k) => per[k] <= capOf(L) && !busyHit(s, t.days, L));
+    out.push({ start:s, end:s + (t.days-1)*DAY, per, leave:Math.max(...per), lg, ok });
+  }
+  out.sort((a, b) => a.leave - b.leave || premOf(a.lg) - premOf(b.lg) || a.start - b.start);
+  if (_lvCache.size > 300) _lvCache.clear(); _lvCache.set(key, out); return out;
+}
+function planFor(t, Ls, monthOnly){
+  const all = windowsFor(t, Ls, monthOnly);
+  if (!all.length) return { none:true };
+  const okList = all.filter(w => w.ok), best = okList[0] || null;
+  const alt = best && best.lg ? (okList.find(w => !w.lg) || all.find(w => !w.lg && !Ls.some(L => busyHit(w.start, t.days, L))) || null) : null;
+  return { best, alt, any:all[0], ok:!!best };
+}
+const lvWhy = (t, L) => { if (!L || L.who === 'free') return null; const p = planFor(t, [L]); if (p.none) return null;
+  if (!p.ok) { const a = p.any; return { warn: busyHit(a.start, t.days, L) && a.leave <= capOf(L) ? '出發月份落在你不方便請假的月份' : `至少要請 ${n1(a.leave)} 天，超過你${L.max != null && a.leave > (L.max ?? 99) ? `一次最多 ${n1(L.max)} 天` : `剩下的 ${n1(L.left)} 天特休`}` }; }
+  return { leave:p.best.leave, chip: p.best.leave <= 4 ? `請 ${n1(p.best.leave)} 天就能去` : null }; };
+const whoWord = L => L.who === 'student' ? '請課假' : '請假';
+function winLine(w, t, L){
+  const brk = L.who === 'student' && BREAKS.some(([x,y]) => w.start >= dms(x) && w.start <= dms(y));
+  const how = w.lg ? `搭${w.lg[0]}` : brk ? '放假時出發' : '平日出發';
+  const half = !offDay(w.start, L.who) ? '，出發日下午請半天' : '';
+  return `<b>${how}</b>：${dlab(w.start)}晚上出發 – ${dlab(w.end)}回國，${L.who==='free' || !w.leave ?'<b>不用請假</b>':`${whoWord(L)} <b>${n1(w.leave)}</b> 天${half}`}`;
+}
+function leaveDates(w, L, t){   // 要請假的日期，給複製與行事曆用
+  const out = []; if (!offDay(w.start, L.who)) out.push(dshort(w.start) + ' 下午');
+  for (let i = 1; i < t.days; i++) { const d = w.start + i*DAY; if (!offDay(d, L.who)) out.push(dshort(d)); }
+  if (L.rest && !offDay(w.start + t.days*DAY, L.who)) out.push(dshort(w.start + t.days*DAY) + '（休息）');
+  return out;
+}
+function leaveBox(t){
+  const L = myLeave();
+  if (!L) return `<div class="box lv"><h3>請假試算</h3><p>填幾題（身分、剩幾天特休、一次最多請幾天、不方便的月份），就會算出這團最省假的出發日。</p>
+    <a class="btn2 b2" href="#/me/leave">填請假條件</a></div>`;
+  const p = planFor(t, [L]);
+  if (p.none) return `<div class="box lv"><h3>請假試算</h3><p class="muted">這團建議月份在行事曆已公布的範圍（到 2027 年底）之外，先問顧問團期。</p></div>`;
+  if (L.who === 'free') { const w = p.alt || p.best || p.any;
+    return `<div class="box lv"><h3>出發日建議</h3><p>時間自己安排，建議<b>避開連假</b>出發，團費比較省。</p><p>${winLine(w, t, L)}</p>${lvActions(w)}${lvFoot(L)}</div>`; }
+  const w = p.best || p.any, left = (L.who === 'work' || L.who === 'gov') && L.left != null ? L.left - w.leave : null;
+  const warn = !p.ok ? `<p class="warn-t">${lvWhy(t, L).warn}；下面是最省假的日期，供你評估。</p>` : '';
+  const alt = p.alt ? (() => { const d = p.alt.leave - w.leave, save = Math.round(t.from * 1e4 * (premOf(w.lg) - premOf(p.alt.lg)) / 100) * 100;
+    return `<div class="lv-alt"><p><b>避開連假</b>：${dlab(p.alt.start)}出發，${whoWord(L)} ${n1(p.alt.leave)} 天${d > 0 ? `（多請 ${n1(d)} 天）` : ''}${p.alt.ok ? '' : '<span class="lv-w">・超過你的請假上限</span>'}</p>
+      ${save > 0 ? `<p class="small">連假團費通常較高，這個日期每人約少 <b>${save.toLocaleString()} 元</b>（示意，待永信實際價差）</p>` : ''}
+      <button class="txt-btn" data-pick="alt">改用這個日期</button></div>`; })() : '';
+  return `<div class="box lv"><div class="sec-h"><h3>請假試算</h3><a class="small" href="#/me/leave">修改條件</a></div>
+    ${warn}<p class="lv-main">${winLine(w, t, L)}</p>
+    ${left != null ? `<p class="small">請完特休還剩 <b>${n1(Math.max(0, left))}</b> 天${L.max != null ? `・在你一次最多 ${n1(L.max)} 天${w.leave <= L.max ? '內' : '之外'}` : ''}</p>` : ''}
+    ${alt}${lvActions(w)}${lvFoot(L)}</div>`;
+}
+const lvActions = w => `<div class="row3"><button class="btn2 b2" data-lv="copy">複製請假日期</button><button class="btn2 b2" data-lv="ics">加入行事曆</button><button class="btn2 b2" data-lv="remind">出發前 30 天提醒我</button></div>`;
+const lvFoot = L => `<p class="muted small">連假依行政院 116 年辦公日曆表；團期為示意，實際出發日請問顧問。${!L || L.who==='free' ? '' : L.who==='student' ? '寒暑假日期為示意，依你的學校行事曆。' : L.who==='gov' ? '公務員不放勞動節；休假天數以機關核定為準。' : '勞動節只適用勞基法勞工；特休天數以公司為準。'}</p>`;
+function bindLeave(el, t){
+  const box = el.querySelector('.lv'); if (!box) return; const L = myLeave(); if (!L) return;
+  let p = planFor(t, [L]), w = p.best || p.any;
+  box.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => { w = p.alt; box.querySelector('.lv-main').innerHTML = winLine(w, t, L); b.closest('.lv-alt').remove(); toast('已改用避開連假的日期'); });
+  box.querySelectorAll('[data-lv]').forEach(b => b.onclick = () => {
+    if (!w) return;
+    const name = short(t), ds = leaveDates(w, L, t);
+    if (b.dataset.lv === 'copy') shareText(`${name}｜${dlab(w.start)}出發 – ${dlab(w.end)}回國\n${L.who==='free'?'不用請假':`${whoWord(L)} ${n1(w.leave)} 天：${ds.join('、') || '不用請假'}`}`, '請假日期已複製');
+    if (b.dataset.lv === 'ics') downloadICS(t, w, L, ds);
+    if (b.dataset.lv === 'remind') setReminder(t, w);
+  });
+}
+function downloadICS(t, w, L, ds){
+  const f = ms => dkey(ms).replace(/-/g, ''), stamp = new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z';
+  const lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//FJUIEC//YS Travel Prototype//ZH','CALSCALE:GREGORIAN',
+    'BEGIN:VEVENT', `UID:${f(w.start)}-${TRIPS.indexOf(t)}@fjuiec`, `DTSTAMP:${stamp}`, `DTSTART;VALUE=DATE:${f(w.start)}`, `DTEND;VALUE=DATE:${f(w.end + DAY)}`,
+    `SUMMARY:${short(t)}（永信旅遊・示意團期）`, `DESCRIPTION:${L.who==='free'?'不用請假':`${whoWord(L)} ${n1(w.leave)} 天：${ds.join('、')}`}\\n輔大創新創業社課程原型，非永信官方`,
+    'BEGIN:VALARM','TRIGGER:-P30D','ACTION:DISPLAY','DESCRIPTION:記得跟主管請假','END:VALARM','END:VEVENT','END:VCALENDAR'];
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([lines.join('\r\n')], { type:'text/calendar' }));
+  a.download = 'ys-trip-leave.ics'; document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  toast('已下載行事曆檔，打開就能加入（含出發前 30 天提醒）');
+}
+async function setReminder(t, w){
+  const on = Math.max(todayMs() + DAY, w.start - 30*DAY), when = dshort(on);
+  S.reminders = (S.reminders || []).filter(r => r.trip !== t.name).concat([{ trip:t.name, depart:dkey(w.start), on:dkey(on) }]);
+  addNote('system', `已設定 ${when} 提醒你請假`, `${short(t)} ${dshort(w.start)} 出發；${when} 會提醒你跟主管提假。正式版由永信 LINE 官方帳號推播。`, '#/trip/' + TRIPS.indexOf(t));
+  save(); toast(`好了，${when} 會提醒你請假`);
+  if (online()) { const me = await ensureCustomer(); if (me) sb.from('leave_reminders').upsert({ customer_id:me.id, trip_name:t.name, depart_on:dkey(w.start), remind_on:dkey(on) }, { onConflict:'customer_id,trip_name' }).then(() => {}); }
+  track('leave_remind', { trip:t.name });
+}
+/* 多人共同窗口：只回傳日期，不顯示每個人請幾天 */
+function commonLine(t, others, monthOnly){
+  const L = myLeave(); if (!L || !others || !others.length) return '';
+  const Ls = [L, ...others].map(x => ({ ...x, who:x.who || 'work' })); const p = planFor(t, Ls, monthOnly);
+  if (p.none) return '';
+  if (!p.ok) return `<p class="lv-c warn">找不到大家都請得了假的日期，可以改月份或少一天的團</p>`;
+  const w = p.best; return `<p class="lv-c">大家都能去：${w.lg ? w.lg[0] + ' ' : ''}${dshort(w.start)}–${dshort(w.end)}</p>`;
+}
+const aggLeave = lv => lv && lv.n ? [{ who:lv.who || 'work', max:lv.max, busy:lv.busy || [], rest:!!lv.rest }] : null;
+const buddyLeave = b => { const l = (b.card_a || {}).leave; return l ? [l] : null; };
+
+/* 年資 → 特休（法定最低天數） */
+function legalDays(who, y, m){
+  const now = new Date(), mon = (now.getFullYear() - y) * 12 + (now.getMonth() + 1 - m);
+  if (mon < 0) return null; const yr = Math.floor(mon / 12);
+  if (who === 'gov') return yr < 1 ? 0 : yr < 3 ? 7 : yr < 6 ? 14 : yr < 9 ? 21 : yr < 14 ? 28 : 30;
+  return mon < 6 ? 0 : yr < 1 ? 3 : yr < 2 ? 7 : yr < 3 ? 10 : yr < 5 ? 14 : yr < 10 ? 15 : Math.min(30, 16 + (yr - 10));
+}
+function leaveView(){
+  const cur = myLeave(), L = Object.assign({ who:'work', left:null, max:5, busy:[], rest:false }, cur || {});
+  const el = $h(`<section class="pad lvset">${topbar('請假條件', {home:true})}
+    <p class="muted">用來算「這團要請幾天、哪天出發最省假」。只有你和你的顧問看得到；旅伴只會看到你們共同的出發日期。</p>
+    <div class="box"><h3>你的身分</h3><div class="who4">${WHO.map(([k,l,s]) => `<button class="opt op" data-who="${k}" aria-pressed="${L.who===k}"><span class="ot"><b>${l}</b><small>${s}</small></span></button>`).join('')}</div></div>
+    <div class="box" data-for="work gov"><h3>今年還剩幾天特休？</h3>
+      <div class="stp"><button class="op" data-st="left:-0.5" aria-label="減半天">−</button><output id="left">${L.left == null ? '—' : n1(L.left)}</output><span>天</span><button class="op" data-st="left:0.5" aria-label="加半天">＋</button></div>
+      <details class="lv-help"><summary>不確定？用到職年月估算</summary>
+        <div class="row2"><label class="fld"><span>到職年</span><select id="sy">${Array.from({length:41}, (_, k) => 2026 - k).map(y => `<option>${y}</option>`).join('')}</select></label>
+          <label class="fld"><span>月</span><select id="sm">${MONTHS.map((x, k) => `<option value="${k+1}">${x}</option>`).join('')}</select></label></div>
+        <button class="btn2 b2" id="calc">估算並填入</button>
+        <p class="muted small" id="calcNote">依法定最低天數估算；公司若用曆年制或給得比較多，以公司為準。到職年月不會儲存。</p></details></div>
+    <div class="box" data-for="work gov student"><h3>一次最多能請幾天？</h3>
+      <div class="stp"><button class="op" data-st="max:-0.5" aria-label="減半天">−</button><output id="max">${n1(L.max)}</output><span>天</span><button class="op" data-st="max:0.5" aria-label="加半天">＋</button></div>
+      <p class="muted small">很多人特休夠，但一次請不了太多天；這個數字最決定能不能去。</p></div>
+    <div class="box"><h3>不方便請假的月份</h3><p class="muted small">可複選，例如年底檔期、結帳月；推薦會避開</p>
+      <div class="chips-s">${MONTHS.map((x, k) => `<button class="fc ${L.busy.includes(k)?'on':''}" data-busy="${k}">${x}</button>`).join('')}</div></div>
+    <div class="box" data-for="work gov student"><h3>回國隔天要上班（上課）嗎？</h3>
+      <div class="seg"><button data-rest="0" aria-current="${!L.rest?'page':'false'}">要，直接上班</button><button data-rest="1" aria-current="${L.rest?'page':'false'}">想多休一天</button></div>
+      <p class="muted small">歐洲回程多半早上抵台；想多休一天會算進請假天數。</p></div>
+    <button class="btn1 b1" id="save">儲存</button>
+    ${cur ? '<button class="btn2 b2" id="clear">清除請假條件</button>' : ''}
+  </section>`);
+  bindBack(el, 'me');
+  const show = () => { el.querySelectorAll('[data-for]').forEach(b => b.hidden = !b.dataset.for.split(' ').includes(L.who));
+    el.querySelectorAll('[data-who]').forEach(b => b.setAttribute('aria-pressed', b.dataset.who === L.who)); };
+  el.querySelectorAll('[data-who]').forEach(b => b.onclick = () => { L.who = b.dataset.who; show(); });
+  el.querySelectorAll('[data-st]').forEach(b => b.onclick = () => { const [k, d] = b.dataset.st.split(':'), lim = k === 'left' ? 30 : 10;
+    L[k] = Math.min(lim, Math.max(k === 'max' ? .5 : 0, (L[k] ?? (k === 'left' ? 7 : 5)) + +d)); el.querySelector('#' + k).textContent = n1(L[k]); });
+  el.querySelectorAll('[data-busy]').forEach(b => b.onclick = () => { const k = +b.dataset.busy; L.busy = L.busy.includes(k) ? L.busy.filter(x => x !== k) : [...L.busy, k].sort((a,b)=>a-b); b.classList.toggle('on'); });
+  el.querySelectorAll('[data-rest]').forEach(b => b.onclick = () => { L.rest = b.dataset.rest === '1'; el.querySelectorAll('[data-rest]').forEach(x => x.setAttribute('aria-current', x === b ? 'page' : 'false')); });
+  el.querySelector('#calc').onclick = () => { const d = legalDays(L.who, +el.querySelector('#sy').value, +el.querySelector('#sm').value);
+    if (d == null) return toast('到職日期在未來，請再確認');
+    L.left = d; el.querySelector('#left').textContent = n1(d);
+    el.querySelector('#calcNote').textContent = d ? `估算：依${L.who==='gov'?'公務人員請假規則':'勞基法第 38 條'}，你今年有 ${d} 天${L.who==='gov'?'休假':'特休'}。已填入，扣掉今年用掉的再調整。` : `年資未滿${L.who==='gov'?' 1 年':' 6 個月'}，依法還沒有${L.who==='gov'?'休假':'特休'}；公司另有規定以公司為準。`; };
+  el.querySelector('#save').onclick = () => {
+    const keep = { who:L.who, busy:L.busy, rest:L.who === 'free' ? false : L.rest, at:new Date().toISOString().slice(0,7) };
+    if (L.who === 'work' || L.who === 'gov') { if (L.left != null) keep.left = L.left; }
+    if (L.who !== 'free') keep.max = L.max;
+    S.prof.card_a = Object.assign(S.prof.card_a || {}, { leave:keep }); _lvCache.clear(); save(); pushProfile(); track('leave_set', { who:L.who });
+    toast('已儲存，行程頁會顯示請假試算'); back('me'); };
+  const cl = el.querySelector('#clear'); if (cl) cl.onclick = () => { delete S.prof.card_a.leave; _lvCache.clear(); save(); pushProfile(); toast('已清除'); back('me'); };
+  show(); return el;
+}
+function leaveSummary(t){ const L = myLeave(); if (!L) return null;
+  const who = WHO.find(x => x[0] === L.who)[1], parts = [who];
+  if (L.left != null && (L.who === 'work' || L.who === 'gov')) parts.push(`特休剩 ${n1(L.left)} 天`);
+  if (L.max != null && L.who !== 'free') parts.push(`一次最多 ${n1(L.max)} 天`);
+  if ((L.busy || []).length) parts.push(`避開 ${L.busy.map(k => k + 1).join('、')} 月`);
+  if (L.rest) parts.push('回國想多休一天');
+  if (t) { const p = planFor(t, [L]); if (p.best) parts.push(`想${p.best.lg ? '搭' + p.best.lg[0] : '平日出發'}（${dshort(p.best.start)} 出發）`); }
+  return parts.join('，'); }
 
 /* ===== 啟動 ===== */
 /* 從 QR、連結直接打開深層頁面時，先在歷史紀錄墊上層頁面，手機返回鍵會一路回到首頁，不會直接跳出 App */
