@@ -59,14 +59,15 @@ const LS = 'ys_app_v2';
 const S = Object.assign({consent:null, demo:false, ans:{}, pace:null, view:null, prof:{}, favs:[], cmp:[], quizDone:false,
   notes:[], ledger:[], buddies:[], nickname:'', lineSync:true, me:null, inv:null, flt:null, region:null,
   inq:[], avatar:null, region_tw:null, prefs:{}, fltDefault:null, photo:null, photoOn:false,
-  intro:null, reminders:[], polls:[], groups:[], pendPoll:null, pendJoin:null, metoo:[], demoPoll:null, demoGroup:null},
+  intro:null, reminders:[], stage:'deciding', polls:[], groups:[], pendPoll:null, pendJoin:null, metoo:[], demoPoll:null, demoGroup:null},
   (()=>{try{return JSON.parse(localStorage.getItem(LS)||'{}')}catch(e){return {}}})());
 S.me = null;
-const DEMO_VER = 5;   // 示範帳號資料版本：App 加了新功能時調高，舊手機上的示範帳號會自動補齊
+const DEMO_VER = 6;   // 示範帳號資料版本：App 加了新功能時調高，舊手機上的示範帳號會自動補齊
 if (S.demo && S.demoVer !== DEMO_VER) {
   Object.assign(S, { photo:'img/lin.jpg', photoOn:true, avatar:S.avatar || 'cat', region_tw:S.region_tw || '北部', nickname:S.nickname || '林雅婷', demoVer:DEMO_VER });
   if (S.prof) { S.prof.card_a = S.prof.card_a || {}; if (!S.prof.card_a.leave) S.prof.card_a.leave = JSON.parse(JSON.stringify(DEMO.prof.card_a.leave)); }
   (S.buddies || []).forEach(b => { if (b.demo) b.card_a = JSON.parse(JSON.stringify(DEMO.buddy.card_a)); });
+  S.stage = 'deciding';
   if (!S.inq || !S.inq.length) S.inq = [{ trip:'巴黎精品與甜點 10 天｜巴黎連泊、精品自由逛、購物後司機送回飯店', status:'replied', at:new Date(Date.now() - .3*864e5).toISOString() }];
 }
 state.ans = S.ans || {}; if (S.pace) { state.pace = S.pace; state.view = S.view || S.pace; }
@@ -131,7 +132,7 @@ document.addEventListener('click', e => { const a = e.target.closest('a[href^="#
 /* 上一頁：App 內有上一頁就回去；從 QR、連結或通知直接打開的，回到這頁的上層，不會跳出 App */
 function parentOf(p){ const r = p.split('/');
   if (r[0] === 'trip' || r[0] === 'compare') return 'explore';
-  if (r[0] === 'team') return 'buddy';
+  if (r[0] === 'team') return 'me';
   if (r[0] === 'me' && r[1] === 'legal') return 'me/settings';
   if (['explore','pass','me','inbox'].includes(r[0]) && r[1]) return r[0];
   if (!r[0] || r[0] === 'home') return null;
@@ -451,7 +452,7 @@ function welcomeView(){
 function enterDemo(){
   Object.assign(S, { consent:'demo', demo:true, prof:JSON.parse(JSON.stringify(DEMO.prof)), favs:[...DEMO.favs], cmp:[], quizDone:true,
     notes:demoNotes(), ledger:demoLedger(), buddies:[{...DEMO.buddy, buddy_id:'demo', seen:false}], nickname:DEMO.name, flt:null, region:null,
-    avatar:'cat', photo:'img/lin.jpg', photoOn:true, demoVer:DEMO_VER, region_tw:'北部', prefs:{}, fltDefault:null, inq:[{trip:TRIPS[tripId('巴黎精品與甜點')].name, status:'replied', at:daysAgo(.3)}] });
+    avatar:'cat', photo:'img/lin.jpg', photoOn:true, demoVer:DEMO_VER, stage:'deciding', region_tw:'北部', prefs:{}, fltDefault:null, inq:[{trip:TRIPS[tripId('巴黎精品與甜點')].name, status:'replied', at:daysAgo(.3)}] });
   state.ans = JSON.parse(JSON.stringify(DEMO.ans)); state.pace = topPace(scores()); state.view = state.pace; save();
   toast(`已進入示範帳號：${DEMO.name}`); nav('home', true);
 }
@@ -762,7 +763,6 @@ function buddyView(){
     <div id="polls">${loaderHTML()}</div>
     <div class="sec-h"><h2>揪團</h2><span class="muted small">湊滿有優惠＋點數</span></div>
     <div id="groups"></div>
-    <a class="link-row op" href="#/team">${ic('star')}<span>我的團：團友牆${S.demo?'（巴黎 3/18 團）':''}</span>${ic('chev','end')}</a>
   </section>`);
   el.querySelector('#newPoll').onclick = () => pollSheet(b ? buddyInfo(b).joint.concat(mine().slice(0,3)).filter((x,i,arr)=>arr.findIndex(y=>y.t===x.t)===i) : mine().slice(0,4));
   el.querySelectorAll('.rows [data-group-from]').forEach(x => x.onclick = () => groupSheet(+x.dataset.groupFrom));
@@ -980,7 +980,6 @@ async function fillSocial(el){
   if (!online()) { pb.innerHTML = '<p class="muted small">成為會員後就能發起投票與揪團。</p>'; gb.innerHTML = ''; return; }
   const [ps, gs] = await Promise.all([Promise.all(S.polls.slice(0,3).map(c => sb.rpc('get_poll', { p_code:c }))), Promise.all(S.groups.slice(0,3).map(c => sb.rpc('get_group', { p_code:c })))]);
   const P = ps.map(r => r.data).filter(Boolean), G = gs.map(r => r.data).filter(Boolean);
-  G.filter(g => g.status !== 'open').forEach(g => departMoment(g.trip, `揪團成功！${short({name:g.trip})} 已湊滿 ${g.members.length} 人，顧問會確認名額`, 'group:' + g.code));
   pb.innerHTML = P.length ? P.map(pollCard).join('') : '<p class="muted small">還沒有投票。決定不了去哪團？發起一個，讓旅伴點一下就好。</p>';
   gb.innerHTML = G.length ? G.map(groupCard).join('') : '<p class="muted small">還沒有揪團。在上面任一團按「揪這團」就能開始。</p>';
   bindSocial(el);
@@ -996,7 +995,7 @@ function bindSocial(el){
   el.querySelectorAll('[data-group-from]').forEach(b => b.onclick = () => groupSheet(+b.dataset.groupFrom));
   el.querySelectorAll('[data-share-group]').forEach(b => b.onclick = () => S.demo ? toast('示範帳號不會真的傳出；正式版會傳出揪團小卡（附自我介紹揪人版）') : shareGroup(b.dataset.shareGroup, b.closest('.group').querySelector('h3').textContent.replace('揪團：','')));
   el.querySelectorAll('[data-send-group]').forEach(b => b.onclick = async () => {
-    if (S.demo) { demoGroup().status = 'sent'; departMoment(demoGroup().trip, `揪團成功！${short({name:demoGroup().trip})} 已送給顧問確認名額`, 'group:DEMO02'); S.inq.unshift({ trip:demoGroup().trip + '（揪團 2 人）', status:'new', at:new Date().toISOString() }); save(); toast('已送給顧問（示範）'); return fillSocial(el); }
+    if (S.demo) { demoGroup().status = 'sent'; S.inq.unshift({ trip:demoGroup().trip + '（揪團 2 人）', status:'new', at:new Date().toISOString() }); save(); toast('已送給顧問確認名額（示範）；成團後才會開放團友牆'); return fillSocial(el); }
     const r = await sb.rpc('send_group', { p_code:b.dataset.sendGroup }); if (r.data) { toast('已送給顧問，會用交接代碼聯絡你'); track('group_send'); fillSocial(el); } });
 }
 
@@ -1009,21 +1008,29 @@ const DEMO_TEAM = { trip:'巴黎精品與甜點 10 天', date:'2027-03-18', lead
          {nick:'阿哲', role:'hatter', tags:['慢慢逛','愛拍照','要有自由時間'], text:'瘋帽匠一枚，愛拍照、喜歡有自由時間，需要拍照可以找我！'},
          {nick:'May', role:'queen', tags:['跟著導覽走','愛聽在地故事','喜歡連泊'], text:'紅心皇后，喜歡聽在地故事，請多指教！'}],
   dist:{cat:4, rabbit:2, alice:2, hatter:2, queen:2} };
+const STAGES = [['挑團中','探索、比較、和旅伴投票或揪團、問顧問'],['已報名・等成團','顧問確認名額與訂金'],['成團確認','開放團友牆、整團行事曆與集合資訊']];
 function teamView(){
-  const booked = S.demo;
-  if (!booked) { const el = $h(`<section class="pad">${topbar('我的團', {home:true})}
-      <div class="empty-card"><div class="ec-ic">${ic('star')}</div><h2>報名成功後自動出現</h2><p>出發倒數、集合資訊、領隊公告，還有同團旅人的角色卡，都會在這裡。</p>
-      <a class="btn2 b2" href="#/me/intro">先準備我的自我介紹</a></div></section>`); bindBack(el, 'buddy'); return el; }
+  const booked = S.demo && S.stage === 'confirmed';
+  if (!booked) { const now = 0;
+    const el = $h(`<section class="pad">${topbar('我的團', {home:true})}
+      <div class="empty-card lock-card"><div class="ec-ic">${ic('star')}</div><h2>成團確認後開啟</h2><p>團友牆、整團行事曆、集合資訊與領隊公告，要等顧問確認成團才會出現；挑團時一起討論的是你自己邀的旅伴。</p>
+      <ol class="stages">${STAGES.map(([t, d], k) => `<li class="${k < now ? 'done' : k === now ? 'now' : ''}"><b>${t}</b><span>${d}</span></li>`).join('')}</ol>
+      ${S.demo ? '<button class="btn1 b1" id="toConf">看成團後的樣子（示範）</button>' : ''}
+      <a class="btn2 b2" href="#/me/intro">先準備我的自我介紹</a></div></section>`);
+    bindBack(el, 'me');
+    const tc = el.querySelector('#toConf'); if (tc) tc.onclick = () => { S.stage = 'confirmed'; save(); toast('示範：巴黎 3/18 團已成團'); render(); };
+    return el; }
   const T = DEMO_TEAM, it = myIntro(), days = Math.max(0, Math.ceil((new Date(T.date) - Date.now()) / 864e5));
   const all = [{ nick:S.nickname || '我', role:state.view, tags:it.tags, text:it.text, me:true }, ...T.mates];
   const total = Object.values(T.dist).reduce((a, b) => a + b, 0);
   const el = $h(`<section class="pad team">${topbar('我的團', {home:true})}
+    <div class="demo-stage"><span>示範：已成團</span><button class="txt-btn" id="toDec">切回挑團中</button></div>
     <div class="team-hero b3"><span>${T.trip}</span><b>${days} 天後出發</b><small>${T.date.slice(5).replace('-','/')} 出發・領隊 ${T.leader}・共 ${total} 位旅人（示範團）</small></div>
     <div class="box"><h3>集合資訊</h3><p class="small">${T.meet}</p></div>
     <div class="box cal-sub"><div class="sec-h"><h3>整團行程加入行事曆</h3><span class="muted small">會自動更新</span></div>
       <ul class="plain small"><li>2/16 跟主管請假提醒</li><li>2/25 繳尾款截止（示意）</li><li>3/4 19:30 行前說明會</li><li>3/18 21:30 機場集合・3/18–3/27 出團</li></ul>
       <button class="btn1 b1" id="calSub">加入我的行事曆</button>
-      <p class="muted small">iPhone 按一下就會訂閱，顧問改時間你的行事曆跟著變；Android 先下載檔案加入。只放行程，不放你的請假天數。</p></div>
+      <p class="muted small">成團確認後開放訂閱。iPhone 按一下就會訂閱，顧問改時間你的行事曆跟著變；Android 先下載檔案加入。只放行程，不放你的請假天數。</p></div>
     <div class="box"><h3>領隊公告</h3><ul class="plain small">${T.notes.map(n=>`<li>${n}</li>`).join('')}</ul></div>
     <div class="box"><div class="sec-h"><h3>這團的旅人組成</h3><span class="muted small">領隊也看得到，用來安排自由時間</span></div>
       <div class="dist">${ROLE_ORDER.map(k=>`<div><span>${PACES[k].short}</span><div class="prog"><i style="width:${(T.dist[k]||0)/total*100}%"></i></div><b>${T.dist[k]||0}</b></div>`).join('')}</div></div>
@@ -1032,7 +1039,8 @@ function teamView(){
     <div class="mates">${all.map(m => mateCard(m, { metoo:true, vis:it.vis })).join('')}</div>
     <p class="muted small">只顯示設成「全團」的團友（${T.mates.length}/${total - 1} 位）；點對方的標籤表示「我也是」，相同的標籤會配成小隊。沒有聊天室，想多聊請私下交換 LINE。</p>
     <div id="squad"></div></section>`);
-  bindBack(el, 'buddy');
+  bindBack(el, 'me');
+  el.querySelector('#toDec').onclick = () => { S.stage = 'deciding'; save(); toast('已切回挑團中'); render(); };
   el.querySelector('#calSub').onclick = () => {
     const rel = 'cal/paris-0318.ics', url = new URL(rel, location.href);
     if (/iPhone|iPad|Macintosh/.test(navigator.userAgent) && url.protocol === 'https:') { location.href = 'webcal://' + url.host + url.pathname; track('team_cal', { how:'webcal' }); return; }
@@ -1195,7 +1203,7 @@ function meView(){
     <div class="menu">
       <a class="op" href="#/me/intro">${ic('chat')}<span>我的自我介紹</span><em>${S.intro?({team:'只給領隊',all:'全團公開',none:'不公開'}[S.intro.vis]):'用作答自動產生'}</em>${ic('chev','end')}</a>
       <a class="op" href="#/me/leave">${ic('pass')}<span>請假條件</span><em>${myLeave()?WHO.find(x=>x[0]===myLeave().who)[1]:'算出要請幾天'}</em>${ic('chev','end')}</a>
-      <a class="op" href="#/team">${ic('star')}<span>我的團</span>${S.demo?'<em>巴黎 3/18 團</em>':''}${ic('chev','end')}</a>
+      <a class="op" href="#/team">${ic('star')}<span>我的團</span><em>${S.demo && S.stage === 'confirmed' ? '巴黎 3/18 已成團' : '成團後開啟'}</em>${ic('chev','end')}</a>
       <a class="op" href="#/buddy">${ic('buddy')}<span>旅伴</span>${S.buddies.length?`<em>${S.buddies.length} 位</em>`:''}${ic('chev','end')}</a>
       <a class="op" href="#/inbox">${ic('bell')}<span>通知</span>${unread()?`<em>${unread()} 則未讀</em>`:''}${ic('chev','end')}</a>
       <a class="op" href="#/me/settings">${ic('gear')}<span>設定與隱私</span>${ic('chev','end')}</a></div>

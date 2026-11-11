@@ -582,3 +582,15 @@ div.srow{cursor:default}
 .mc-key .k-h::before{background:linear-gradient(135deg,#fff 50%,#F59312 50%);border:1px solid var(--line)}
 .cal-sub .btn1{width:100%}
 .mc-key .k-se::before{border:2px solid #00223D;background:#fff}
+/* 我的團：成團前上鎖 */
+.lock-card{text-align:left}
+.stages{list-style:none;margin:4px 0 8px;padding:0;display:flex;flex-direction:column;gap:0;counter-reset:st}
+.stages li{position:relative;padding:0 0 14px 34px;display:flex;flex-direction:column;gap:2px;counter-increment:st}
+.stages li::before{content:counter(st);position:absolute;left:0;top:0;width:24px;height:24px;border-radius:50%;background:#EFE7D8;color:var(--muted);font-weight:800;font-size:13px;display:grid;place-items:center}
+.stages li:not(:last-child)::after{content:'';position:absolute;left:11px;top:26px;bottom:2px;width:2px;background:#EFE7D8}
+.stages li.now::before{background:#F59312;color:#2B1600}
+.stages li.done::before{background:#00223D;color:#fff;content:'✓'}
+.stages li b{font-size:15px}.stages li span{font-size:13px;color:var(--muted)}
+.stages li.now b{color:#B85C00}
+.demo-stage{display:flex;justify-content:space-between;align-items:center;background:#FDE3CC;border-radius:12px;padding:8px 12px;font-size:13px;font-weight:700;color:#7A3D00}
+.demo-stage .txt-btn{padding:0}
